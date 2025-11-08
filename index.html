@@ -1,27 +1,147 @@
 <!doctype html>
-<html>
-  <head>
-    <meta charset="UTF-8" />
-    <title>NeuralNet Coin</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <style>
-      body { background:#000; color:#fff; font-family:sans-serif; margin:0; padding:1.5rem; }
-      .box { max-width:700px; margin:0 auto; }
-      img { max-width:120px; height:auto; display:block; margin-bottom:1rem; }
-      h1 { margin-bottom:.5rem; }
-      p { color:rgba(255,255,255,.65); }
-    </style>
-  </head>
-  <body>
-    <div class="box">
-      <!-- tries PNG first, if missing it tries JPG -->
-      <img src="nnc_logo.png" onerror="this.onerror=null; this.src='nnc_logo.jpg';" alt="NNC logo" />
-      <h1>NeuralNet Coin (NNC)</h1>
-      <p>If you can read this, GitHub Pages is working ✅</p>
-      <p>Mint: BhwvuTEBCdYYCUVWSCmpekG42TrpNQxNUGHyR5rQtxtF</p>
-      <p>Treasury: Cx1djt9qsLBfymbFAo4627T</p>
-      <p>View tx on <a href="https://explorer.solana.com" style="color:#38bdf8;">Solana Explorer</a></p>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NeuralNet Coin (NNC)</title>
+  <link rel="icon" type="image/png" href="nnc_logo.png" />
+  <style>
+    body {
+      margin: 0;
+      font-family: "Inter", system-ui, sans-serif;
+      background: #000;
+      color: #fff;
+      overflow-x: hidden;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 1rem 1.25rem;
+      background: rgba(0, 0, 0, 0.7);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.4);
+    }
+
+    .coin-dot {
+      width: 80px;
+      height: auto;
+      object-fit: contain;
+      background: transparent;
+      border: none;
+    }
+
+    .title-wrap {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .subtitle {
+      font-size: 0.75rem;
+      color: rgba(255, 255, 255, 0.45);
+    }
+
+    main {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 2rem 1.25rem 3rem;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 0.3rem;
+    }
+
+    p.muted {
+      color: rgba(255, 255, 255, 0.65);
+      font-size: 1.05rem;
+      max-width: 42rem;
+    }
+
+    .tag-bar {
+      margin: 1.5rem 0;
+    }
+
+    .tag {
+      display: inline-block;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 9999px;
+      padding: 0.35rem 0.9rem;
+      font-size: 0.8rem;
+      letter-spacing: 0.5px;
+      margin-right: 0.5rem;
+      color: rgba(255, 255, 255, 0.8);
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 1rem;
+      padding: 1.5rem;
+      margin-top: 2rem;
+      line-height: 1.5;
+    }
+
+    a {
+      color: #38bdf8;
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    footer {
+      text-align: center;
+      color: rgba(255, 255, 255, 0.4);
+      padding: 2rem 1rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      margin-top: 3rem;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <img src="nnc_logo.png" onerror="this.onerror=null;this.src='nnc_logo.jpg';" alt="NNC logo" class="coin-dot" />
+    <div class="title-wrap">
+      <div style="font-weight:600;">NeuralNet Coin</div>
+      <div class="subtitle">Solana • Token-2022</div>
     </div>
-  </body>
+  </header>
+
+  <main>
+    <h1>NeuralNet Coin (NNC)</h1>
+    <p class="muted">A transparent token for a social-AI economy. We’re building NNC first, liquidity later — and this page will host the pre-sale.</p>
+
+    <div class="tag-bar">
+      <span class="tag">AI-Driven</span>
+      <span class="tag">Marketplace Utility</span>
+      <span class="tag">Social-AI Economy</span>
+    </div>
+
+    <div class="card">
+      <h2>Token Snapshot</h2>
+      <p><strong>Mint:</strong> BhwvuTEBCdYYCUVWSCmpekG42TrpNQxNUGHyR5rQtxtF</p>
+      <p><strong>Treasury:</strong> Cx1djt9qsLBfymbFAo4627T</p>
+      <p>View on <a href="https://explorer.solana.com" target="_blank">Solana Explorer</a></p>
+    </div>
+
+    <div class="card">
+      <h2>About</h2>
+      <p>NNC is your Solana Token-2022 relaunch with proper metadata, governance, and marketplace utility. The project emphasizes integrity, transparency, and ethical AI integration within decentralized finance.</p>
+    </div>
+
+    <div class="card">
+      <h2>Pre-Sale</h2>
+      <p>Coming soon — this page will enable a “Connect Wallet → Pay → Receive NNC” flow directly through Phantom using Solana Pay.</p>
+    </div>
+  </main>
+
+  <footer>
+    © NeuralNet Coin — Transparent. Ethical. AI-Driven.
+  </footer>
+</body>
 </html>
 
