@@ -278,6 +278,85 @@
     </div>
   </section>
 
+  <!-- Phantom Wallet Integration (Enhanced: shows amount + balance) -->
+<script src="https://cdn.jsdelivr.net/npm/@solana/web3.js@latest/lib/index.iife.min.js"></script>
+<script>
+  // --- DOM element references ---
+  const connectBtn = document.getElementById("connectBtn");
+  const payBtn = document.getElementById("payBtn");
+  const walletAddr = document.getElementById("walletAddr");
+  const txStatus = document.getElementById("txStatus");
+
+  // --- Destination wallet: your Phantom address ---
+  const treasury = "JD2sVKxN11Ezn4AYVD4s2JiRUt1Y5Rb5SFueCD5FsmVN";
+
+  // --- Connect Phantom Wallet ---
+  async function connectWallet() {
+    const provider = window.phantom?.solana;
+    if (!provider?.isPhantom) {
+      alert("Phantom Wallet not found! Please install it from phantom.app.");
+      return;
+    }
+    const resp = await provider.connect();
+    walletAddr.textContent = `✅ Connected: ${resp.publicKey.toString()}`;
+    payBtn.disabled = false;
+  }
+
+  // --- Send 0.01 SOL and show balance ---
+  async function sendPayment() {
+    const provider = window.phantom?.solana;
+    if (!provider?.isPhantom) {
+      alert("Please connect Phantom first!");
+      return;
+    }
+
+    const connection = new solanaWeb3.Connection(
+      solanaWeb3.clusterApiUrl("mainnet-beta"),
+      "confirmed"
+    );
+
+    const amountSol = 0.01;
+    const lamports = amountSol * 1e9;
+
+    // Create and send transaction
+    const transaction = new solanaWeb3.Transaction().add(
+      solanaWeb3.SystemProgram.transfer({
+        fromPubkey: provider.publicKey,
+        toPubkey: new solanaWeb3.PublicKey(treasury),
+        lamports: lamports,
+      })
+    );
+
+    transaction.feePayer = provider.publicKey;
+    const { blockhash } = await connection.getLatestBlockhash();
+    transaction.recentBlockhash = blockhash;
+
+    const signed = await provider.signTransaction(transaction);
+    const signature = await connection.sendRawTransaction(signed.serialize());
+
+    // Wait for confirmation
+    await connection.confirmTransaction(signature, "confirmed");
+
+    // Get balance after transaction
+    const balanceLamports = await connection.getBalance(provider.publicKey);
+    const balanceSol = (balanceLamports / 1e9).toFixed(4);
+
+    // Update status message
+    txStatus.innerHTML = `
+      ✅ <strong>${amountSol} SOL</strong> sent successfully!<br>
+      🔹 Current wallet balance: <strong>${balanceSol} SOL</strong><br>
+      🔗 <a href="https://explorer.solana.com/tx/${signature}?cluster=mainnet-beta"
+          target="_blank" style="color:#38bdf8;">View on Solana Explorer</a>
+    `;
+  }
+
+  // --- Event listeners for the buttons ---
+  connectBtn.addEventListener("click", connectWallet);
+  payBtn.addEventListener("click", sendPayment);
+</script>
+<!-- End Enhanced Integration -->
+
+
   <!-- DOCS -->
   <section class="section" id="docs">
     <h2>Docs & resources</h2>
