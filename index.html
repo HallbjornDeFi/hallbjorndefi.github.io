@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>NeuralNet Coin (NNC)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" type="image/png" href="nnc_logo.png" />
+  <style>
+    :root {
+      --bg: radial-gradient(circle at top, #111827 0%, #000 50%, #000 100%);
+      --card: rgba(15, 23, 42, 0.55);
+      --border: rgba(148, 163, 184, 0.15);
+      --accent: #38bdf8;
+      --accent-soft: rgba(56, 189, 248, 0.08);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: #fff;
+      min-height: 100vh;
+    }
+    header {
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+      backdrop-filter: blur(12px);
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background: rgba(0,0,0,0.35);
+    }
+    .nav-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 1.25rem;
+    }
+    .logo-wrap {
+      display: flex;
+      gap: .6rem;
+      align-items: center;
+    }
+    /* === logo image === */
+    .coin-dot {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      object-fit: cover;
+      box-shadow: 0 0 15px rgba(173, 216, 230, 0.5),
+                  0 0 35px rgba(192, 232, 255, 0.25);
+      border: 1px solid rgba(200, 220, 255, 0.2);
+      background: radial-gradient(circle at 30% 30%, #7a8da1 0%, #0a0f14 100%);
+    }
+    .nav-links a {
+      margin-left: 1rem;
+      color: rgba(255,255,255,0.65);
+      text-decoration: none;
+      font-size: 0.85rem;
+    }
+    .nav-links a:hover { color: #fff; }
+    .hero {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2.2rem 1.25rem 1.8rem;
+      display: grid;
+      grid-template-columns: 1.1fr .9fr;
+      gap: 2rem;
+    }
+    @media (max-width: 900px) {
+      .hero { grid-template-columns: 1fr; }
+    }
+    .badge {
+      font-size: .6rem;
+      letter-spacing: .35em;
+      text-transform: uppercase;
+      background: rgba(56, 189, 248, 0.08);
+      color: #e2f3ff;
+      padding: .35rem .85rem;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      border-radius: 9999px;
+      display: inline-block;
+      margin-bottom: 1.2rem;
+    }
+    h1 {
+      font-size: clamp(2.4rem, 5vw, 3.3rem);
+      line-height: 1;
+      margin-bottom: 1rem;
+    }
+    .muted {
+      color: rgba(226,232,255,0.68);
+      line-height: 1.6;
+      max-width: 34rem;
+      font-size: .95rem;
+      margin-bottom: 1.2rem;
+    }
+    .btn-row { display: flex; gap: .65rem; flex-wrap: wrap; }
+    .btn-primary {
+      background: #fff;
+      color: #000;
+      padding: .6rem 1.35rem;
+      border-radius: .75rem;
+      border: none;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: .85rem;
+    }
+    .btn-secondary {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(226,232,255,0.12);
+      color: #fff;
+      padding: .6rem 1.35rem;
+      border-radius: .75rem;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 1.25rem;
+      padding: 1.25rem 1.2rem 1.2rem;
+      box-shadow: 0 10px 40px rgba(15,23,42,0.25);
+    }
+    .panel-title {
+      font-weight: 600;
+      margin-bottom: 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .kv-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: .65rem;
+      gap: 1rem;
+    }
+    .kv-label { color: rgba(226,232,255,0.45); font-size: .75rem; }
+    .kv-value { font-size: .75rem; word-break: break-all; }
+    .section {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 1.5rem 1.25rem 2rem;
+    }
+    .section h2 { margin-bottom: .65rem; }
+    .presale-box {
+      background: linear-gradient(135deg, rgba(148,163,184,0.04), rgba(56,189,248,0.05));
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      border-radius: 1.25rem;
+      padding: 1rem 1.25rem;
+      max-width: 32rem;
+    }
+    .small {
+      font-size: .75rem;
+      color: rgba(226,232,255,0.55);
+    }
+    footer {
+      text-align: center;
+      padding: 1.5rem 1.25rem 2.5rem;
+      color: rgba(148,163,184,0.35);
+      font-size: .7rem;
+    }
+    .status-pill {
+      background: rgba(250,204,21,0.12);
+      color: #fde68a;
+      font-size: .65rem;
+      padding: .35rem .6rem;
+      border-radius: 9999px;
+    }
+    .pay-btn {
+      background: #fff;
+      color: #000;
+      border: none;
+      padding: .55rem 1rem;
+      border-radius: .5rem;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: .75rem;
+    }
+    .pay-btn:disabled { opacity: .35; cursor: not-allowed; }
+    .status-text {
+      font-size: .7rem;
+      margin-top: .55rem;
+      color: #bae6fd;
+      word-break: break-all;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="nav-inner">
+      <div class="logo-wrap">
+        <img src="nnc_logo.png" alt="NeuralNet Coin logo" class="coin-dot" />
+        <div>
+          <div style="font-weight:600; font-size:.9rem;">NeuralNet Coin</div>
+          <div style="font-size:.65rem; color:rgba(255,255,255,0.4);">Solana • Token-2022</div>
+        </div>
+      </div>
+      <div class="nav-links">
+        <a href="#about">About</a>
+        <a href="#presale">Pre-sale</a>
+        <a href="#docs">Docs</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div>
+      <span class="badge">AI-DRIVEN • MARKETPLACE UTILITY</span>
+      <h1>NeuralNet Coin (NNC)</h1>
+      <p class="muted">
+        A transparent token for a social-AI economy. We’re rolling out marketplace payments and
+        controlled pre-sales before opening liquidity pools to the public.
+      </p>
+      <div class="btn-row">
+        <a href="#presale"><button class="btn-primary">View Pre-Sale</button></a>
+        <a href="#docs"><button class="btn-secondary">Read Whitepaper</button></a>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">
+        <span>Token snapshot</span>
+        <span class="status-pill">metadata syncing</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-label">Network</span>
+        <span class="kv-value">Solana (Token-2022)</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-label">Mint</span>
+        <span class="kv-value">BhwvuTEBCdYYCUVWSCmpekG42TrpNQxNUGHyR5rQtxtF</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-label">Treasury</span>
+        <span class="kv-value">Cx1djt9qsLBfymbFAo4627T</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-label">Stage</span>
+        <span class="kv-value">Website pre-sale (manual fulfill)</span>
+      </div>
+      <p class="small" style="margin-top:1rem;">
+        Final token image will appear on explorers once Solscan/Phantom finishes cache refresh.
+      </p>
+    </div>
+  </section>
+
+  <section class="section" id="about">
+    <h2>Why this site first?</h2>
+    <p class="muted" style="max-width:46rem;">
+      Instead of throwing NNC straight into a liquidity pool where bots and early dumpers can wreck the pricing,
+      we’re doing a controlled, on-site pre-sale. That means fixed price tiers, visible treasury, and manual or
+      backend-verified NNC distribution.
+    </p>
+  </section>
+
+  <section class="section" id="presale">
+    <h2>Pre-sale (prototype)</h2>
+    <p class="muted" style="max-width:40rem;">
+      Connect Phantom, send a small test payment to the NNC treasury, and we’ll later hook this into the
+      automatic NNC distributor. The NNC transfer-fee logic lives on-chain, so we don’t force it here.
+    </p>
+    <div class="presale-box">
+      <p style="font-weight:600; margin-bottom:.5rem;">1. Connect wallet</p>
+      <button id="connectBtn" class="pay-btn">Connect Phantom</button>
+      <div id="walletAddr" class="status-text"></div>
+      <p style="font-weight:600; margin-top:1.3rem; margin-bottom:.5rem;">2. Send test payment</p>
+      <p class="small">This sends <strong>0.01 SOL</strong> to the NNC treasury at <code style="font-size:.6rem;">Cx1djt9qsLBfymbFAo4627T</code>.</p>
+      <button id="payBtn" class="pay-btn" disabled>Pay 0.01 SOL to NNC</button>
+      <div id="txStatus" class="status-text"></div>
+      <p class="small" style="margin-top:.8rem;">
+        After payment, you can verify the signature on Solscan. In the real pre-sale, this step will
+        trigger NNC distribution from the treasury.
+      </p>
+    </div>
+  </section>
+
+  <section class="section" id="docs">
+    <h2>Docs & resources</h2>
+    <p class="muted">
+      Latest whitepaper and roadmap are hosted on GitHub and Substack.
+    </p>
+    <ul style="list-style:none; padding-left:0; margin-top:1rem; display:grid; gap:.5rem;">
+      <li>• GitHub (whitepaper + token-2022 notes): <a href="https://github.com/HallbjornDeFi/NeuralNetCoin" style="color:var(--accent);" target="_blank" rel="noreferrer">github.com/HallbjornDeFi/NeuralNetCoin</a></li>
+      <li>• Marketplace beta concept — NNC-only services</li>
+      <li>• Token metadata updates log</li>
+    </ul>
+  </section>
+
+  <footer>
+    NeuralNet Coin — transparent, utility-first, AI-aligned.
+  </footer>
+
+  <!-- JS: Phantom payment -->
+  <script src="https://unpkg.com/@solana/web3.js@1.95.0/lib/index.iife.js"></script>
+  <script>
+    const TREASURY = "Cx1djt9qsLBfymbFAo4627T";
+    const connectBtn = document.getElementById('connectBtn');
+    const payBtn = document.getElementById('payBtn');
+    const walletAddr = document.getElementById('walletAddr');
+    const txStatus = document.getElementById('txStatus');
+    let provider = null, userPublicKey = null;
+
+    function getProvider() {
+      if ('solana' in window) {
+        const p = window.solana;
+        if (p.isPhantom) return p;
+      }
+      return null;
+    }
+
+    connectBtn.onclick = async () => {
+      provider = getProvider();
+      if (!provider) { walletAddr.textContent = "Phantom not found."; return; }
+      try {
+        const resp = await provider.connect();
+        userPublicKey = resp.publicKey;
+        walletAddr.textContent = "Connected: " + userPublicKey.toString();
+        payBtn.disabled = false;
+      } catch { walletAddr.textContent = "Connection rejected."; }
+    };
+
+    payBtn.onclick = async () => {
+      if (!provider || !userPublicKey) { txStatus.textContent = "Connect wallet first."; return; }
+      try {
+        txStatus.textContent = "Creating transaction...";
+        const connection = new solanaWeb3.Connection(solanaWeb3.clusterApiUrl('mainnet-beta'), 'confirmed');
+        const fromPubkey = userPublicKey;
+        const toPubkey = new solanaWeb3.PublicKey(TREASURY);
+        const lamports = 0.01 * solanaWeb3.LAMPORTS_PER_SOL;
+        const transaction = new solanaWeb3.Transaction().add(
+          solanaWeb3.SystemProgram.transfer({ fromPubkey, toPubkey, lamports })
+        );
+        transaction.feePayer = fromPubkey;
+        const { blockhash } = await connection.getLatestBlockhash();
+        transaction.recentBlockhash = blockhash;
+        const signed = await provider.signAndSendTransaction(transaction);
+        txStatus.textContent = "Sent! Signature: " + signed.signature;
+      } catch (err) {
+        txStatus.textContent = "Payment failed: " + err.message;
+      }
+    };
+  </script>
+</body>
+</html>
+
