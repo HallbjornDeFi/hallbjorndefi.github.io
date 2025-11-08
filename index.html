@@ -1,40 +1,27 @@
 <!doctype html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>NeuralNet Coin (NNC)</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="icon" type="image/png" href="nnc_logo.png" />
-  <style>
-    body { margin:0; background:#000; color:#fff; font-family:system-ui, sans-serif; }
-    header { display:flex; gap:0.75rem; align-items:center; padding:1rem 1.25rem; background:rgba(0,0,0,.5); border-bottom:1px solid rgba(255,255,255,.03); }
-    .coin { width:80px; height:auto; object-fit:contain; }
-    .wrap { max-width:1100px; margin:0 auto; padding:1.5rem 1.25rem 3rem; }
-    h1 { font-size:2.4rem; margin-bottom:.4rem; }
-    .muted { color:rgba(255,255,255,.6); max-width:40rem; }
-    .card { background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.04); border-radius:1.2rem; padding:1rem 1.25rem; margin-top:1.5rem; }
-    a { color:#38bdf8; }
-    button { background:#fff; color:#000; border:none; padding:.6rem 1.3rem; border-radius:.6rem; font-weight:600; cursor:pointer; }
-  </style>
-</head>
-<body>
-  <header>
-    <img src="nnc_logo.png" alt="NNC logo" class="coin" />
-    <div>
-      <div style="font-weight:600;">NeuralNet Coin</div>
-      <div style="font-size:.75rem; color:rgba(255,255,255,.45);">Solana • Token-2022</div>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>NeuralNet Coin</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      body { background:#000; color:#fff; font-family:sans-serif; margin:0; padding:1.5rem; }
+      .box { max-width:700px; margin:0 auto; }
+      img { max-width:120px; height:auto; display:block; margin-bottom:1rem; }
+      h1 { margin-bottom:.5rem; }
+      p { color:rgba(255,255,255,.65); }
+    </style>
+  </head>
+  <body>
+    <div class="box">
+      <!-- tries PNG first, if missing it tries JPG -->
+      <img src="nnc_logo.png" onerror="this.onerror=null; this.src='nnc_logo.jpg';" alt="NNC logo" />
+      <h1>NeuralNet Coin (NNC)</h1>
+      <p>If you can read this, GitHub Pages is working ✅</p>
+      <p>Mint: BhwvuTEBCdYYCUVWSCmpekG42TrpNQxNUGHyR5rQtxtF</p>
+      <p>Treasury: Cx1djt9qsLBfymbFAo4627T</p>
+      <p>View tx on <a href="https://explorer.solana.com" style="color:#38bdf8;">Solana Explorer</a></p>
     </div>
-  </header>
-  <main class="wrap">
-    <h1>NeuralNet Coin (NNC)</h1>
-    <p class="muted">Official web portal for the NNC token. Pre-sale will be hosted here before liquidity goes live.</p>
-
-    <div class="card">
-      <h2 style="margin-top:0;">Token snapshot</h2>
-      <p><strong>Mint:</strong> BhwvuTEBCdYYCUVWSCmpekG42TrpNQxNUGHyR5rQtxtF</p>
-      <p><strong>Treasury:</strong> Cx1djt9qsLBfymbFAo4627T</p>
-      <p>View transactions on <a href="https://explorer.solana.com" target="_blank">Solana Explorer</a></p>
-    </div>
-  </main>
-</body>
+  </body>
 </html>
+
