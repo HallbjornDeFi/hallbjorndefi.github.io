@@ -310,22 +310,50 @@
     NeuralNet Coin — transparent, utility-first, AI-aligned.
   </footer>
 
-  <!-- polyfills MUST come before solana web3 -->
+  <!-- 1) make Node-like globals -->
   <script>
     // some browser builds of solana/web3 expect these
-    window.global = window;         // make "global" exist
-  </script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/buffer/6.0.3/buffer.min.js" integrity="sha512-FTgB+QijH2J9sfKvGxXS0P89L9cE6mdoayv0xH5mov1AAE5jf8NmoM7UsWJmH9XLdv0Lk5G7kGgCqGkq4ZqYkw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-  <script>
-    // expose Buffer exactly where solana web3 looks
-    if (window.buffer && window.buffer.Buffer) {
-      window.Buffer = window.buffer.Buffer;
+    if (typeof window.global === "undefined") {
+      window.global = window;
     }
   </script>
 
-  <!-- Solana web3 -->
+  <!-- 2) load buffer polyfill -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/buffer/5.7.1/buffer.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+  <!-- 3) normalize Buffer -->
+  <script>
+    (function () {
+      // if CDN exposed window.buffer.Buffer, use it
+      if (typeof window.Buffer === "undefined") {
+        if (window.buffer && window.buffer.Buffer) {
+          window.Buffer = window.buffer.Buffer;
+        }
+      }
+      // last-resort tiny shim to avoid "Buffer is not defined" crashes
+      if (typeof window.Buffer === "undefined") {
+        window.Buffer = {
+          from: function (data, enc) {
+            if (typeof data === "string") {
+              if (enc === "base64") {
+                const bin = atob(data);
+                const arr = new Uint8Array(bin.length);
+                for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+                return arr;
+              }
+              return new TextEncoder().encode(data);
+            }
+            return Uint8Array.from(data);
+          }
+        };
+      }
+    })();
+  </script>
+
+  <!-- 4) now load solana web3 -->
   <script src="https://unpkg.com/@solana/web3.js@1.95.0/lib/index.iife.js"></script>
 
+  <!-- 5) your logic -->
   <script>
     const connectBtn = document.getElementById("connectBtn");
     const payBtn = document.getElementById("payBtn");
