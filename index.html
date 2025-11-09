@@ -61,12 +61,6 @@
       <p class="muted">
         A transparent token for a social-AI economy. We’re rolling out marketplace payments and
         controlled pre-sales before opening liquidity pools to the public.
-        NeuralNet Coin (NNC) is more than a cryptocurrency — it’s the foundation for a transparent,
-        AI-driven economy where humans and intelligent systems collaborate through data, creativity,
-        and innovation. Built on the Solana Token-2022 standard, NNC powers ethical AI development,
-        decentralized marketplaces, and proof-of-contribution models that reward genuine engagement.
-        Our goal is to restore integrity to the blockchain space through real-world utility, verified
-        transparency, and community-driven growth.
       </p>
       <div class="btn-row">
         <a href="#presale"><button class="btn-primary">View Pre-Sale</button></a>
@@ -91,28 +85,30 @@
     <h2>Why this site first?</h2>
     <p class="muted" style="max-width:46rem;">
       Instead of throwing NNC straight into a liquidity pool where bots and early dumpers can wreck the pricing,
-      we’re doing a controlled, on-site pre-sale. That means fixed price tiers, visible treasury, and manual or
-      backend-verified NNC distribution.
+      we’re doing a controlled, on-site pre-sale.
     </p>
   </section>
 
   <section class="section" id="presale">
     <h2>Pre-sale (prototype)</h2>
     <p class="muted" style="max-width:40rem;">
-      Connect Phantom, send a payment to the NNC developer/treasury wallet, and we’ll later hook this into the
-      automatic NNC distributor. The NNC transfer-fee logic lives on-chain, so we don’t force it here.
+      Connect Phantom, send a payment to the NNC developer/treasury wallet, and we’ll later hook this into the distributor.
     </p>
     <p class="muted" style="margin-top:1rem; margin-bottom:1.2rem;">
       <strong>Presale Rules:</strong><br>
       • 1 NNC = $0.0001 USD (≈ 15 800 NNC per 0.01 SOL)<br>
-      • Minimum contribution: 0.005 SOL (≈ $0.79 USD)<br>
-      • Maximum per wallet: 0.25 SOL (≈ $39.50 USD ≈ 395 000 NNC)<br>
-      • Manual distribution — tokens are sent to the same wallet after verification.<br>
+      • Minimum contribution: 0.005 SOL<br>
+      • Maximum per wallet: 0.25 SOL<br>
+      • Manual distribution — tokens are sent after verification.<br>
     </p>
 
     <div class="presale-box">
       <p style="font-weight:600; margin-bottom:.5rem;">1. Connect wallet</p>
-      <button id="connectBtn" class="pay-btn">Connect Phantom</button>
+      <div class="btn-row" style="margin:.2rem 0 .2rem;">
+        <button id="connectBtn" class="pay-btn">Connect Phantom</button>
+        <!-- mobile-only helper (hidden on desktop) -->
+        <button id="openPhantomBtn" class="linkish" type="button" style="display:none;" title="Open this page inside Phantom app">Open in Phantom App</button>
+      </div>
       <div id="walletAddr" class="status-text"></div>
 
       <p style="font-weight:600; margin-top:1.3rem; margin-bottom:.5rem;">2. Send Payment</p>
@@ -132,7 +128,7 @@
       </div>
       <div id="txStatus" class="status-text"></div>
       <p class="small" style="margin-top:.8rem;">
-        After payment, you can verify the signature directly on
+        After payment, verify the signature on
         <a href="https://explorer.solana.com/" target="_blank" style="color:var(--accent); text-decoration:none;">Solana Explorer</a>.
       </p>
     </div>
@@ -167,283 +163,4 @@
     })();
   </script>
 
-  <!-- Your configured RPC (keep your Helius URL or override) -->
-  <script>
-    window.__NNC_RPC__ = window.__NNC_RPC__ || "https://mainnet.helius-rpc.com/?api-key=e259f5af-7b93-4753-b6d2-3f75b5571108";
-  </script>
-
-  <!-- web3 AFTER polyfills -->
-  <script src="https://unpkg.com/@solana/web3.js@1.95.0/lib/index.iife.js"></script>
-
-  <script>
-    const connectBtn = document.getElementById("connectBtn");
-    const payBtn = document.getElementById("payBtn");
-    const setRpcBtn = document.getElementById("setRpcBtn");
-    const walletAddr = document.getElementById("walletAddr");
-    const txStatus = document.getElementById("txStatus");
-    const amountInput = document.getElementById("amountSol");
-    const amountHelp = document.getElementById("amountHelp");
-    const memoInput = document.getElementById("memoInput");
-
-    const TREASURY = "JD2sVKxN11Ezn4AYVD4s2JiRUt1Y5Rb5SFueCD5FsmVN";
-    const CLUSTER = "mainnet-beta";
-    const MIN_SOL = 0.005, MAX_SOL = 0.25;
-
-    function getProvider() {
-      if (window.solana?.isPhantom) return window.solana;
-      if (window.phantom?.solana) return window.phantom.solana;
-      return null;
-    }
-
-    // RPC resolver (query → localStorage → window var → cluster)
-    function resolveRpc() {
-      try { const qp = new URLSearchParams(location.search).get('rpc'); if (qp) return qp; } catch {}
-      try { const stored = localStorage.getItem('NNC_RPC'); if (stored) return stored; } catch {}
-      const candidate = window.__NNC_RPC__;
-      const looksPlaceholder = typeof candidate === 'string' && /REPLACE_|YOUR_(KEY|API_KEY)|YOUR-SUBDOMAIN/i.test(candidate);
-      if (candidate && !looksPlaceholder) return candidate;
-      return solanaWeb3.clusterApiUrl(CLUSTER);
-    }
-
-    // --- Price fetch (cache) ---
-    let lastPriceUSD = null, lastPriceAt = 0;
-    async function getSolUsd() {
-      const now = Date.now();
-      if (lastPriceUSD && (now - lastPriceAt) < 60_000) return lastPriceUSD;
-      // try Coinbase, then Coingecko
-      try {
-        const r = await fetch('https://api.coinbase.com/v2/prices/SOL-USD/spot', {cache:'no-store'});
-        const j = await r.json();
-        const v = parseFloat(j?.data?.amount);
-        if (Number.isFinite(v)) { lastPriceUSD = v; lastPriceAt = now; return v; }
-      } catch {}
-      try {
-        const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd', {cache:'no-store'});
-        const j = await r.json();
-        const v = parseFloat(j?.solana?.usd);
-        if (Number.isFinite(v)) { lastPriceUSD = v; lastPriceAt = now; return v; }
-      } catch {}
-      return null;
-    }
-
-    // Exact SOL→lamports from string (no FP)
-    function solToLamportsBigInt(solStr) {
-      const s = String(solStr ?? '').trim();
-      if (!/^\d+(\.\d+)?$/.test(s)) return null;
-      const [i, f=''] = s.split('.');
-      if (f.length > 9) return null; // too many decimals
-      const intPart = BigInt(i) * 1_000_000_000n;
-      const fracPart = BigInt((f + '000000000').slice(0,9));
-      return intPart + fracPart;
-    }
-
-    // u64 LE encoder
-    function u64LEBytes(v) {
-      const b = (typeof v === 'bigint') ? v : BigInt(v);
-      const buf = new ArrayBuffer(8), view = new DataView(buf);
-      if (view.setBigUint64) { view.setBigUint64(0, b, true); return new Uint8Array(buf); }
-      let x=b; const out=new Uint8Array(8); for(let i=0;i<8;i++){ out[i]=Number(x&0xffn); x>>=8n; } return out;
-    }
-
-    function createSystemTransferIx(from, to, lamportsBig) {
-      const keys = [
-        { pubkey: from, isSigner: true, isWritable: true },
-        { pubkey: to,   isSigner: false, isWritable: true },
-      ];
-      const data = new Uint8Array(12);
-      new DataView(data.buffer).setUint32(0, 2, true);   // SystemInstruction.Transfer = 2
-      data.set(u64LEBytes(lamportsBig), 4);
-      return new solanaWeb3.TransactionInstruction({ programId: solanaWeb3.SystemProgram.programId, keys, data });
-    }
-
-    function createMemoIx(text) {
-      const memo = String(text || '').trim();
-      if (!memo) return null;
-      // keep short; backend can map memo to purchaser metadata.
-      const bytes = Buffer.from(memo, 'utf8');
-      if (bytes.length > 120) throw new Error('Memo too long (max ~120 bytes).');
-      return new solanaWeb3.TransactionInstruction({
-        programId: new solanaWeb3.PublicKey('MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr'),
-        keys: [],
-        data: bytes,
-      });
-    }
-
-    async function connectWallet() {
-      const provider = getProvider();
-      if (!provider) { alert("Phantom Wallet not found! Install it from https://phantom.app"); return; }
-      try {
-        const resp = await provider.connect();
-        walletAddr.textContent = `✅ Connected: ${resp.publicKey.toString()}`;
-        updateUiState();
-      } catch (e) {
-        console.error(e);
-        walletAddr.textContent = "❌ Wallet connection rejected.";
-      }
-    }
-
-    async function buildTransferTx(connection, provider, lamportsBig, memoText) {
-      const to = new solanaWeb3.PublicKey(TREASURY);
-      const ix1 = createSystemTransferIx(provider.publicKey, to, lamportsBig);
-      const tx = new solanaWeb3.Transaction().add(ix1);
-      const ix2 = createMemoIx(memoText);
-      if (ix2) tx.add(ix2);
-      tx.feePayer = provider.publicKey;
-      const { blockhash } = await connection.getLatestBlockhash("finalized");
-      tx.recentBlockhash = blockhash;
-      return tx;
-    }
-
-    function looksLikeBlockhashError(err) {
-      const s = (err?.message || String(err || '')).toLowerCase();
-      return s.includes('blockhash not found') || s.includes('blockhash expired') || s.includes('transaction expired');
-    }
-    function looksLikeForbidden(err) {
-      const s = (err?.message || String(err || '')).toLowerCase();
-      return s.includes('403') || s.includes('forbidden') || s.includes('"code": 403');
-    }
-
-    async function sendPayWithRetry(connection, provider, lamportsBig, memoText) {
-      payBtn.disabled = true;
-      try {
-        let tx = await buildTransferTx(connection, provider, lamportsBig, memoText);
-        let sig;
-        if (typeof provider.signAndSendTransaction === "function") {
-          const res = await provider.signAndSendTransaction(tx);
-          sig = res.signature ?? res;
-        } else {
-          const signed = await provider.signTransaction(tx);
-          sig = await connection.sendRawTransaction(signed.serialize());
-        }
-        return sig;
-      } catch (err) {
-        if (looksLikeForbidden(err)) {
-          throw new Error('RPC 403. Click "Set RPC" and paste your provider URL, or add ?rpc=YOUR_RPC_URL.');
-        }
-        if (!looksLikeBlockhashError(err)) throw err;
-        let tx = await buildTransferTx(connection, provider, lamportsBig, memoText);
-        if (typeof provider.signAndSendTransaction === "function") {
-          const res = await provider.signAndSendTransaction(tx);
-          return res.signature ?? res;
-        } else {
-          const signed = await provider.signTransaction(tx);
-          return await connection.sendRawTransaction(signed.serialize());
-        }
-      }
-    }
-
-    async function sendPayment() {
-      const provider = getProvider();
-      if (!provider) { alert("Please install / connect Phantom first!"); return; }
-      if (!provider.publicKey) { alert("Please connect Phantom first!"); return; }
-
-      // Validate amount
-      const amtStr = String(amountInput.value || '').trim();
-      const amt = parseFloat(amtStr);
-      const lamportsBig = solToLamportsBigInt(amtStr);
-      if (!Number.isFinite(amt) || amt < MIN_SOL || amt > MAX_SOL || !lamportsBig) {
-        amountHelp.classList.add('error');
-        amountHelp.textContent = `Amount must be between ${MIN_SOL} and ${MAX_SOL} SOL.`;
-        return;
-      }
-
-      try {
-        txStatus.textContent = "Building transaction...";
-        payBtn.disabled = true;
-
-        const rpc = resolveRpc();
-        const connection = new solanaWeb3.Connection(rpc, { commitment: "confirmed" });
-
-        const sig = await sendPayWithRetry(connection, provider, lamportsBig, memoInput.value);
-        txStatus.innerHTML = `⏳ Sent. Waiting for confirmation...<br>Sig: ${sig}`;
-
-        const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash("finalized");
-        await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, "confirmed");
-
-        txStatus.innerHTML = `✅ ${amtStr} SOL sent!<br>
-          🔗 <a href="https://explorer.solana.com/tx/${sig}?cluster=${CLUSTER}" target="_blank" style="color:#38bdf8;">View on Solana Explorer</a>`;
-      } catch (err) {
-        console.error(err);
-        txStatus.textContent = "❌ " + (err.message || String(err));
-        payBtn.disabled = false;
-      }
-    }
-
-    // --- UI helpers ---
-    async function refreshUsdEstimate() {
-      const amtStr = String(amountInput.value || '').trim();
-      const amt = parseFloat(amtStr);
-      const price = await getSolUsd();
-      const parts = [`Min ${MIN_SOL}`, `Max ${MAX_SOL}`];
-      if (Number.isFinite(amt) && price) {
-        const usd = amt * price;
-        parts.push(`≈ $${usd.toFixed(2)} @ $${price.toFixed(2)}/SOL`);
-      } else {
-        parts.push('≈ $—');
-      }
-      amountHelp.classList.toggle('error', !(Number.isFinite(amt) && amt >= MIN_SOL && amt <= MAX_SOL));
-      amountHelp.textContent = parts.join(' • ');
-    }
-
-    function updatePayButtonText() {
-      const v = String(amountInput.value || '').trim();
-      payBtn.textContent = `Pay ${v || '—'} SOL to NNC`;
-    }
-
-    function updateUiState() {
-      const connected = !!getProvider()?.publicKey;
-      const amt = parseFloat(String(amountInput.value || '').trim());
-      const validAmt = Number.isFinite(amt) && amt >= MIN_SOL && amt <= MAX_SOL;
-      payBtn.disabled = !(connected && validAmt);
-    }
-
-    // --- Set RPC handler (unchanged) ---
-    async function promptAndSaveRpc() {
-      try {
-        const current = (localStorage.getItem('NNC_RPC') || window.__NNC_RPC__ || '').trim();
-        const input = prompt('Enter your Solana RPC URL (Helius/Alchemy/QuickNode):', current);
-        if (!input) return;
-        let url;
-        try { url = new URL(input.trim()); if (!/^https?:$/i.test(url.protocol)) throw new Error(); } catch { alert('Invalid URL. Please paste a full https URL.'); return; }
-        localStorage.setItem('NNC_RPC', url.toString()); window.__NNC_RPC__ = url.toString();
-        txStatus.textContent = 'Testing RPC...';
-        const testConn = new solanaWeb3.Connection(url.toString(), { commitment: 'processed' });
-        await testConn.getLatestBlockhash('processed');
-        txStatus.textContent = '✅ RPC set and reachable.';
-        if (getProvider()?.publicKey) updateUiState();
-        if (setRpcBtn) setRpcBtn.style.display = 'none';
-      } catch (e) {
-        console.error(e);
-        txStatus.textContent = '❌ RPC test failed. Check CORS / key / URL.';
-      }
-    }
-
-    // Auto-persist RPC on load, hide "Set RPC" if OK
-    window.addEventListener('load', async () => {
-      try {
-        const candidate = resolveRpc();
-        if (candidate) {
-          try { localStorage.setItem('NNC_RPC', candidate); } catch {}
-          const testConn = new solanaWeb3.Connection(candidate, { commitment: 'processed' });
-          await testConn.getLatestBlockhash('processed');
-          if (setRpcBtn) setRpcBtn.style.display = 'none';
-          txStatus.textContent = '✅ RPC configured.';
-        }
-      } catch (_) {}
-      await refreshUsdEstimate();
-      updatePayButtonText();
-      updateUiState();
-    });
-
-    // Events
-    connectBtn.addEventListener("click", connectWallet);
-    setRpcBtn.addEventListener("click", promptAndSaveRpc);
-    amountInput.addEventListener("input", async () => {
-      updatePayButtonText();
-      updateUiState();
-      await refreshUsdEstimate();
-    });
-    memoInput.addEventListener("input", updateUiState);
-  </script>
-</body>
-</html>
+  <!-- Your configured RPC (keep you
