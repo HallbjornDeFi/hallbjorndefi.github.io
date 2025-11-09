@@ -29,6 +29,11 @@
     .pay-btn{background:#fff;color:#000;border:none;padding:.55rem 1rem;border-radius:.5rem;font-weight:600;cursor:pointer;font-size:.75rem}.pay-btn:disabled{opacity:.35;cursor:not-allowed}
     .status-text{font-size:.7rem;margin-top:.55rem;color:#bae6fd;word-break:break-all}
     .linkish{background:transparent;border:1px solid rgba(226,232,255,.12);color:#fff;padding:.55rem 1rem;border-radius:.5rem;font-weight:500;cursor:pointer;font-size:.75rem}
+    .field{display:flex;gap:.5rem;align-items:center;margin:.4rem 0}
+    .field label{width:5.1rem; font-size:.8rem; color:rgba(226,232,255,.75)}
+    .field input[type="number"], .field input[type="text"]{flex:1;background:rgba(255,255,255,.05);border:1px solid rgba(148,163,184,.25);color:#fff;border-radius:.5rem;padding:.5rem .6rem;font-size:.85rem}
+    .help{font-size:.7rem;color:rgba(226,232,255,.6);margin-top:.15rem}
+    .help.error{color:#fecaca}
   </style>
 </head>
 <body>
@@ -111,10 +116,16 @@
       <div id="walletAddr" class="status-text"></div>
 
       <p style="font-weight:600; margin-top:1.3rem; margin-bottom:.5rem;">2. Send Payment</p>
-      <p class="small">
-        This sends <strong>0.01 SOL</strong> to the NNC developer treasury at
-        <code style="font-size:.6rem;">JD2sVKxN11Ezn4AYVD4s2JiRUt1Y5Rb5SFueCD5FsmVN</code>.
-      </p>
+      <div class="field">
+        <label for="amountSol">Amount</label>
+        <input id="amountSol" type="number" min="0.005" max="0.25" step="0.001" value="0.01" inputmode="decimal" />
+      </div>
+      <div id="amountHelp" class="help">Min 0.005 • Max 0.25 • ≈ $—</div>
+
+      <div class="field">
+        <label for="memoInput">Memo</label>
+        <input id="memoInput" type="text" maxlength="120" placeholder="Optional note (e.g., handle/email)" />
+      </div>
       <div class="btn-row" style="margin:.4rem 0 .2rem;">
         <button id="payBtn" class="pay-btn" onclick="sendPayment()" disabled>Pay 0.01 SOL to NNC</button>
         <button id="setRpcBtn" class="linkish" type="button" title="Set your Solana RPC endpoint">Set RPC</button>
@@ -156,9 +167,9 @@
     })();
   </script>
 
-  <!-- Your Helius RPC URL -->
+  <!-- Your configured RPC (keep your Helius URL or override) -->
   <script>
-    window.__NNC_RPC__ = "https://mainnet.helius-rpc.com/?api-key=e259f5af-7b93-4753-b6d2-3f75b5571108";
+    window.__NNC_RPC__ = window.__NNC_RPC__ || "https://mainnet.helius-rpc.com/?api-key=e259f5af-7b93-4753-b6d2-3f75b5571108";
   </script>
 
   <!-- web3 AFTER polyfills -->
@@ -170,10 +181,13 @@
     const setRpcBtn = document.getElementById("setRpcBtn");
     const walletAddr = document.getElementById("walletAddr");
     const txStatus = document.getElementById("txStatus");
+    const amountInput = document.getElementById("amountSol");
+    const amountHelp = document.getElementById("amountHelp");
+    const memoInput = document.getElementById("memoInput");
 
     const TREASURY = "JD2sVKxN11Ezn4AYVD4s2JiRUt1Y5Rb5SFueCD5FsmVN";
     const CLUSTER = "mainnet-beta";
-    const LAMPORTS_TO_SEND = 10_000_000;
+    const MIN_SOL = 0.005, MAX_SOL = 0.25;
 
     function getProvider() {
       if (window.solana?.isPhantom) return window.solana;
@@ -181,75 +195,77 @@
       return null;
     }
 
+    // RPC resolver (query → localStorage → window var → cluster)
     function resolveRpc() {
-      try {
-        const qp = new URLSearchParams(location.search).get('rpc');
-        if (qp) return qp;
-      } catch {}
-      try {
-        const stored = localStorage.getItem('NNC_RPC');
-        if (stored) return stored;
-      } catch {}
+      try { const qp = new URLSearchParams(location.search).get('rpc'); if (qp) return qp; } catch {}
+      try { const stored = localStorage.getItem('NNC_RPC'); if (stored) return stored; } catch {}
       const candidate = window.__NNC_RPC__;
-      const looksPlaceholder = typeof candidate === 'string' &&
-        /YOUR_HELIUS_KEY|REPLACE_|YOUR_(KEY|API_KEY)|YOUR-SUBDOMAIN/i.test(candidate);
+      const looksPlaceholder = typeof candidate === 'string' && /REPLACE_|YOUR_(KEY|API_KEY)|YOUR-SUBDOMAIN/i.test(candidate);
       if (candidate && !looksPlaceholder) return candidate;
       return solanaWeb3.clusterApiUrl(CLUSTER);
     }
 
-    async function promptAndSaveRpc() {
+    // --- Price fetch (cache) ---
+    let lastPriceUSD = null, lastPriceAt = 0;
+    async function getSolUsd() {
+      const now = Date.now();
+      if (lastPriceUSD && (now - lastPriceAt) < 60_000) return lastPriceUSD;
+      // try Coinbase, then Coingecko
       try {
-        const current = (localStorage.getItem('NNC_RPC') || window.__NNC_RPC__ || '').trim();
-        const input = prompt('Enter your Solana RPC URL (Helius/Alchemy/QuickNode):', current);
-        if (!input) return;
-
-        let url;
-        try {
-          url = new URL(input.trim());
-          if (!/^https?:$/i.test(url.protocol)) throw new Error('Only http/https allowed');
-        } catch {
-          alert('Invalid URL. Please paste a full https URL.');
-          return;
-        }
-
-        localStorage.setItem('NNC_RPC', url.toString());
-        window.__NNC_RPC__ = url.toString();
-
-        txStatus.textContent = 'Testing RPC...';
-        const testConn = new solanaWeb3.Connection(url.toString(), { commitment: 'processed' });
-        await testConn.getLatestBlockhash('processed');
-        txStatus.textContent = '✅ RPC set and reachable.';
-        if (getProvider()?.publicKey) payBtn.disabled = false;
-        if (setRpcBtn) setRpcBtn.style.display = 'none';
-      } catch (e) {
-        console.error(e);
-        txStatus.textContent = '❌ RPC test failed. Check CORS / key / URL.';
-      }
+        const r = await fetch('https://api.coinbase.com/v2/prices/SOL-USD/spot', {cache:'no-store'});
+        const j = await r.json();
+        const v = parseFloat(j?.data?.amount);
+        if (Number.isFinite(v)) { lastPriceUSD = v; lastPriceAt = now; return v; }
+      } catch {}
+      try {
+        const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd', {cache:'no-store'});
+        const j = await r.json();
+        const v = parseFloat(j?.solana?.usd);
+        if (Number.isFinite(v)) { lastPriceUSD = v; lastPriceAt = now; return v; }
+      } catch {}
+      return null;
     }
 
-    function u64LEBytes(value) {
-      const v = typeof value === 'bigint' ? value : BigInt(value);
-      const buf = new ArrayBuffer(8);
-      const view = new DataView(buf);
-      if (view.setBigUint64) { view.setBigUint64(0, v, true); return new Uint8Array(buf); }
-      let x = v; const out = new Uint8Array(8);
-      for (let i = 0; i < 8; i++) { out[i] = Number(x & 0xffn); x >>= 8n; }
-      return out;
+    // Exact SOL→lamports from string (no FP)
+    function solToLamportsBigInt(solStr) {
+      const s = String(solStr ?? '').trim();
+      if (!/^\d+(\.\d+)?$/.test(s)) return null;
+      const [i, f=''] = s.split('.');
+      if (f.length > 9) return null; // too many decimals
+      const intPart = BigInt(i) * 1_000_000_000n;
+      const fracPart = BigInt((f + '000000000').slice(0,9));
+      return intPart + fracPart;
     }
 
-    function createSystemTransferIx(from, to, lamportsNumber) {
+    // u64 LE encoder
+    function u64LEBytes(v) {
+      const b = (typeof v === 'bigint') ? v : BigInt(v);
+      const buf = new ArrayBuffer(8), view = new DataView(buf);
+      if (view.setBigUint64) { view.setBigUint64(0, b, true); return new Uint8Array(buf); }
+      let x=b; const out=new Uint8Array(8); for(let i=0;i<8;i++){ out[i]=Number(x&0xffn); x>>=8n; } return out;
+    }
+
+    function createSystemTransferIx(from, to, lamportsBig) {
       const keys = [
         { pubkey: from, isSigner: true, isWritable: true },
         { pubkey: to,   isSigner: false, isWritable: true },
       ];
       const data = new Uint8Array(12);
-      const view = new DataView(data.buffer);
-      view.setUint32(0, 2, true);
-      data.set(u64LEBytes(lamportsNumber), 4);
+      new DataView(data.buffer).setUint32(0, 2, true);   // SystemInstruction.Transfer = 2
+      data.set(u64LEBytes(lamportsBig), 4);
+      return new solanaWeb3.TransactionInstruction({ programId: solanaWeb3.SystemProgram.programId, keys, data });
+    }
+
+    function createMemoIx(text) {
+      const memo = String(text || '').trim();
+      if (!memo) return null;
+      // keep short; backend can map memo to purchaser metadata.
+      const bytes = Buffer.from(memo, 'utf8');
+      if (bytes.length > 120) throw new Error('Memo too long (max ~120 bytes).');
       return new solanaWeb3.TransactionInstruction({
-        programId: solanaWeb3.SystemProgram.programId,
-        keys,
-        data,
+        programId: new solanaWeb3.PublicKey('MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr'),
+        keys: [],
+        data: bytes,
       });
     }
 
@@ -259,20 +275,19 @@
       try {
         const resp = await provider.connect();
         walletAddr.textContent = `✅ Connected: ${resp.publicKey.toString()}`;
-        payBtn.disabled = false;
+        updateUiState();
       } catch (e) {
         console.error(e);
         walletAddr.textContent = "❌ Wallet connection rejected.";
       }
     }
 
-    async function buildTransferTx(connection, provider) {
-      const ix = createSystemTransferIx(
-        provider.publicKey,
-        new solanaWeb3.PublicKey(TREASURY),
-        LAMPORTS_TO_SEND
-      );
-      const tx = new solanaWeb3.Transaction().add(ix);
+    async function buildTransferTx(connection, provider, lamportsBig, memoText) {
+      const to = new solanaWeb3.PublicKey(TREASURY);
+      const ix1 = createSystemTransferIx(provider.publicKey, to, lamportsBig);
+      const tx = new solanaWeb3.Transaction().add(ix1);
+      const ix2 = createMemoIx(memoText);
+      if (ix2) tx.add(ix2);
       tx.feePayer = provider.publicKey;
       const { blockhash } = await connection.getLatestBlockhash("finalized");
       tx.recentBlockhash = blockhash;
@@ -288,10 +303,10 @@
       return s.includes('403') || s.includes('forbidden') || s.includes('"code": 403');
     }
 
-    async function sendPayWithRetry(connection, provider) {
+    async function sendPayWithRetry(connection, provider, lamportsBig, memoText) {
       payBtn.disabled = true;
       try {
-        let tx = await buildTransferTx(connection, provider);
+        let tx = await buildTransferTx(connection, provider, lamportsBig, memoText);
         let sig;
         if (typeof provider.signAndSendTransaction === "function") {
           const res = await provider.signAndSendTransaction(tx);
@@ -303,12 +318,10 @@
         return sig;
       } catch (err) {
         if (looksLikeForbidden(err)) {
-          throw new Error(
-            'RPC 403 (Access forbidden). Click "Set RPC" and paste your provider URL, or add ?rpc=YOUR_RPC_URL.'
-          );
+          throw new Error('RPC 403. Click "Set RPC" and paste your provider URL, or add ?rpc=YOUR_RPC_URL.');
         }
         if (!looksLikeBlockhashError(err)) throw err;
-        let tx = await buildTransferTx(connection, provider);
+        let tx = await buildTransferTx(connection, provider, lamportsBig, memoText);
         if (typeof provider.signAndSendTransaction === "function") {
           const res = await provider.signAndSendTransaction(tx);
           return res.signature ?? res;
@@ -324,6 +337,16 @@
       if (!provider) { alert("Please install / connect Phantom first!"); return; }
       if (!provider.publicKey) { alert("Please connect Phantom first!"); return; }
 
+      // Validate amount
+      const amtStr = String(amountInput.value || '').trim();
+      const amt = parseFloat(amtStr);
+      const lamportsBig = solToLamportsBigInt(amtStr);
+      if (!Number.isFinite(amt) || amt < MIN_SOL || amt > MAX_SOL || !lamportsBig) {
+        amountHelp.classList.add('error');
+        amountHelp.textContent = `Amount must be between ${MIN_SOL} and ${MAX_SOL} SOL.`;
+        return;
+      }
+
       try {
         txStatus.textContent = "Building transaction...";
         payBtn.disabled = true;
@@ -331,13 +354,13 @@
         const rpc = resolveRpc();
         const connection = new solanaWeb3.Connection(rpc, { commitment: "confirmed" });
 
-        const sig = await sendPayWithRetry(connection, provider);
+        const sig = await sendPayWithRetry(connection, provider, lamportsBig, memoInput.value);
         txStatus.innerHTML = `⏳ Sent. Waiting for confirmation...<br>Sig: ${sig}`;
 
         const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash("finalized");
         await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, "confirmed");
 
-        txStatus.innerHTML = `✅ 0.01 SOL sent!<br>
+        txStatus.innerHTML = `✅ ${amtStr} SOL sent!<br>
           🔗 <a href="https://explorer.solana.com/tx/${sig}?cluster=${CLUSTER}" target="_blank" style="color:#38bdf8;">View on Solana Explorer</a>`;
       } catch (err) {
         console.error(err);
@@ -346,7 +369,56 @@
       }
     }
 
-    // Auto-apply configured Helius RPC on load, hide "Set RPC" if good
+    // --- UI helpers ---
+    async function refreshUsdEstimate() {
+      const amtStr = String(amountInput.value || '').trim();
+      const amt = parseFloat(amtStr);
+      const price = await getSolUsd();
+      const parts = [`Min ${MIN_SOL}`, `Max ${MAX_SOL}`];
+      if (Number.isFinite(amt) && price) {
+        const usd = amt * price;
+        parts.push(`≈ $${usd.toFixed(2)} @ $${price.toFixed(2)}/SOL`);
+      } else {
+        parts.push('≈ $—');
+      }
+      amountHelp.classList.toggle('error', !(Number.isFinite(amt) && amt >= MIN_SOL && amt <= MAX_SOL));
+      amountHelp.textContent = parts.join(' • ');
+    }
+
+    function updatePayButtonText() {
+      const v = String(amountInput.value || '').trim();
+      payBtn.textContent = `Pay ${v || '—'} SOL to NNC`;
+    }
+
+    function updateUiState() {
+      const connected = !!getProvider()?.publicKey;
+      const amt = parseFloat(String(amountInput.value || '').trim());
+      const validAmt = Number.isFinite(amt) && amt >= MIN_SOL && amt <= MAX_SOL;
+      payBtn.disabled = !(connected && validAmt);
+    }
+
+    // --- Set RPC handler (unchanged) ---
+    async function promptAndSaveRpc() {
+      try {
+        const current = (localStorage.getItem('NNC_RPC') || window.__NNC_RPC__ || '').trim();
+        const input = prompt('Enter your Solana RPC URL (Helius/Alchemy/QuickNode):', current);
+        if (!input) return;
+        let url;
+        try { url = new URL(input.trim()); if (!/^https?:$/i.test(url.protocol)) throw new Error(); } catch { alert('Invalid URL. Please paste a full https URL.'); return; }
+        localStorage.setItem('NNC_RPC', url.toString()); window.__NNC_RPC__ = url.toString();
+        txStatus.textContent = 'Testing RPC...';
+        const testConn = new solanaWeb3.Connection(url.toString(), { commitment: 'processed' });
+        await testConn.getLatestBlockhash('processed');
+        txStatus.textContent = '✅ RPC set and reachable.';
+        if (getProvider()?.publicKey) updateUiState();
+        if (setRpcBtn) setRpcBtn.style.display = 'none';
+      } catch (e) {
+        console.error(e);
+        txStatus.textContent = '❌ RPC test failed. Check CORS / key / URL.';
+      }
+    }
+
+    // Auto-persist RPC on load, hide "Set RPC" if OK
     window.addEventListener('load', async () => {
       try {
         const candidate = resolveRpc();
@@ -357,11 +429,21 @@
           if (setRpcBtn) setRpcBtn.style.display = 'none';
           txStatus.textContent = '✅ RPC configured.';
         }
-      } catch (_) { /* ignore */ }
+      } catch (_) {}
+      await refreshUsdEstimate();
+      updatePayButtonText();
+      updateUiState();
     });
 
+    // Events
     connectBtn.addEventListener("click", connectWallet);
     setRpcBtn.addEventListener("click", promptAndSaveRpc);
+    amountInput.addEventListener("input", async () => {
+      updatePayButtonText();
+      updateUiState();
+      await refreshUsdEstimate();
+    });
+    memoInput.addEventListener("input", updateUiState);
   </script>
 </body>
 </html>
