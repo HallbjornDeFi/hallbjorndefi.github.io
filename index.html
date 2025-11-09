@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>NeuralNet Coin (NNC)</title>
+  <!-- try png, fallback to jpg -->
   <link rel="icon" type="image/png" href="nnc_logo.png" />
   <style>
     :root {
@@ -235,7 +236,8 @@
       </div>
       <div class="kv-row">
         <span class="kv-label">Treasury</span>
-        <span class="kv-value">Cx1djt9qsLBfymbFAo4627T</span>
+        <!-- unified to the same address we're paying to -->
+        <span class="kv-value">JD2sVKxN11Ezn4AYVD4s2JiRUt1Y5Rb5SFueCD5FsmVN</span>
       </div>
       <div class="kv-row">
         <span class="kv-label">Stage</span>
@@ -261,7 +263,7 @@
   <section class="section" id="presale">
     <h2>Pre-sale (prototype)</h2>
     <p class="muted" style="max-width:40rem;">
-      Connect Phantom, send a payment to the NNC Developer treasury, and we’ll later hook this into the
+      Connect Phantom, send a payment to the NNC developer/treasury wallet, and we’ll later hook this into the
       automatic NNC distributor. The NNC transfer-fee logic lives on-chain, so we don’t force it here.
     </p>
     <p class="muted" style="margin-top:1rem; margin-bottom:1.2rem;">
@@ -279,10 +281,13 @@
 
       <p style="font-weight:600; margin-top:1.3rem; margin-bottom:.5rem;">2. Send Payment</p>
       <p class="small">
-        This sends <strong>0.01 SOL</strong> to the NNC Developer treasury at
+        This sends <strong>0.01 SOL</strong> to the NNC developer treasury at
         <code style="font-size:.6rem;">JD2sVKxN11Ezn4AYVD4s2JiRUt1Y5Rb5SFueCD5FsmVN</code>.
       </p>
-      <button id="payBtn" class="pay-btn" onclick="sendPayment()">Pay 0.01 SOL to NNC</button>
+      <!-- start disabled; enable after connect -->
+      <button id="payBtn" class="pay-btn" onclick="sendPayment()" disabled>
+        Pay 0.01 SOL to NNC
+      </button>
       <div id="txStatus" class="status-text"></div>
       <p class="small" style="margin-top:.8rem;">
         After payment, you can verify the signature directly on
@@ -317,67 +322,96 @@
     const walletAddr = document.getElementById("walletAddr");
     const txStatus = document.getElementById("txStatus");
 
-    // your Phantom / receiving wallet
+    // unified treasury / receiving wallet
+    // (this is the one you said was your Phantom / developer wallet)
     const TREASURY = "JD2sVKxN11Ezn4AYVD4s2JiRUt1Y5Rb5SFueCD5FsmVN";
 
-    // connect
-    async function connectWallet() {
-      const provider = window.phantom?.solana;
-      if (!provider?.isPhantom) {
-        alert("Phantom Wallet not found! Install it from phantom.app.");
-        return;
-      }
-      const resp = await provider.connect();
-      walletAddr.textContent = `✅ Connected: ${resp.publicKey.toString()}`;
-      payBtn.disabled = false;
+    // get Phantom provider (handle both window.solana and old window.phantom.solana)
+    function getProvider() {
+      if (window.solana && window.solana.isPhantom) return window.solana;
+      if (window.phantom && window.phantom.solana) return window.phantom.solana;
+      return null;
     }
 
-    // pay
+    async function connectWallet() {
+      const provider = getProvider();
+      if (!provider) {
+        alert("Phantom Wallet not found! Install it from https://phantom.app");
+        return;
+      }
+      try {
+        const resp = await provider.connect();
+        walletAddr.textContent = `✅ Connected: ${resp.publicKey.toString()}`;
+        payBtn.disabled = false;
+      } catch (e) {
+        console.error(e);
+        walletAddr.textContent = "❌ Wallet connection rejected.";
+      }
+    }
+
     async function sendPayment() {
-      const provider = window.phantom?.solana;
-      if (!provider?.isPhantom) {
+      const provider = getProvider();
+      if (!provider) {
+        alert("Please install / connect Phantom first!");
+        return;
+      }
+      if (!provider.publicKey) {
         alert("Please connect Phantom first!");
         return;
       }
 
-      const connection = new solanaWeb3.Connection(
-        solanaWeb3.clusterApiUrl("mainnet-beta"),
-        "confirmed"
-      );
+      try {
+        txStatus.textContent = "Building transaction...";
 
-      const amountSol = 0.01;
-      const lamports = amountSol * solanaWeb3.LAMPORTS_PER_SOL;
+        // if you're testing, change to "devnet"
+        const connection = new solanaWeb3.Connection(
+          solanaWeb3.clusterApiUrl("mainnet-beta"),
+          "confirmed"
+        );
 
-      const transaction = new solanaWeb3.Transaction().add(
-        solanaWeb3.SystemProgram.transfer({
-          fromPubkey: provider.publicKey,
-          toPubkey: new solanaWeb3.PublicKey(TREASURY),
-          lamports
-        })
-      );
+        const amountSol = 0.01;
+        const lamports = Math.floor(amountSol * solanaWeb3.LAMPORTS_PER_SOL);
 
-      transaction.feePayer = provider.publicKey;
-      const { blockhash } = await connection.getLatestBlockhash();
-      transaction.recentBlockhash = blockhash;
+        // create transfer tx
+        const tx = new solanaWeb3.Transaction().add(
+          solanaWeb3.SystemProgram.transfer({
+            fromPubkey: provider.publicKey,
+            toPubkey: new solanaWeb3.PublicKey(TREASURY),
+            lamports,
+          })
+        );
 
-      const signed = await provider.signTransaction(transaction);
-      const signature = await connection.sendRawTransaction(signed.serialize());
-      await connection.confirmTransaction(signature, "confirmed");
+        // set fee payer + blockhash
+        tx.feePayer = provider.publicKey;
+        const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+        tx.recentBlockhash = blockhash;
 
-      // get balance after send (nice touch)
-      const balLamports = await connection.getBalance(provider.publicKey);
-      const balSol = (balLamports / solanaWeb3.LAMPORTS_PER_SOL).toFixed(4);
+        // sign with Phantom
+        const signed = await provider.signTransaction(tx);
 
-      txStatus.innerHTML = `
-        ✅ <strong>${amountSol} SOL</strong> sent successfully!<br>
-        🔹 Current wallet balance: <strong>${balSol} SOL</strong><br>
-        🔗 <a href="https://explorer.solana.com/tx/${signature}?cluster=mainnet-beta" target="_blank" style="color:#38bdf8;">View on Solana Explorer</a>
-      `;
+        // send to network
+        const sig = await connection.sendRawTransaction(signed.serialize());
+        txStatus.innerHTML = `⏳ Sent. Waiting for confirmation...<br>Sig: ${sig}`;
+
+        // confirm
+        await connection.confirmTransaction(
+          { signature: sig, blockhash, lastValidBlockHeight },
+          "confirmed"
+        );
+
+        txStatus.innerHTML = `
+          ✅ 0.01 SOL sent!<br>
+          🔗 <a href="https://explorer.solana.com/tx/${sig}?cluster=mainnet-beta" target="_blank" style="color:#38bdf8;">View on Solana Explorer</a>
+        `;
+      } catch (err) {
+        console.error(err);
+        txStatus.textContent = "❌ " + (err.message || err.toString());
+      }
     }
 
-    // attach
+    // attach events
     connectBtn.addEventListener("click", connectWallet);
-    // we also added onclick on the button as a backup
+    // button already has onclick="sendPayment()" as backup
   </script>
 </body>
 </html>
