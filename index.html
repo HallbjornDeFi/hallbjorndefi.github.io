@@ -31,44 +31,134 @@
   </style>
 </head>
 <body>
-  <!-- … your existing HTML content unchanged … -->
+  <header>
+    <div class="nav-inner">
+      <div class="logo-wrap">
+        <img src="nnc_logo.png" onerror="this.onerror=null;this.src='nnc_logo.jpg';" alt="NeuralNet Coin logo" class="coin-dot" />
+        <div>
+          <div style="font-weight:600; font-size:.9rem;">NeuralNet Coin</div>
+          <div style="font-size:.65rem; color:rgba(255,255,255,0.4);">Solana • Token-2022</div>
+        </div>
+      </div>
+      <div class="nav-links">
+        <a href="#about">About</a>
+        <a href="#presale">Pre-sale</a>
+        <a href="#docs">Docs</a>
+      </div>
+    </div>
+  </header>
 
-  <!-- 1) Minimal globals -->
+  <section class="hero">
+    <div>
+      <span class="badge">AI-DRIVEN • MARKETPLACE UTILITY</span>
+      <h1>NeuralNet Coin (NNC)</h1>
+      <p class="muted">
+        A transparent token for a social-AI economy. We’re rolling out marketplace payments and
+        controlled pre-sales before opening liquidity pools to the public.
+        NeuralNet Coin (NNC) is more than a cryptocurrency — it’s the foundation for a transparent,
+        AI-driven economy where humans and intelligent systems collaborate through data, creativity,
+        and innovation. Built on the Solana Token-2022 standard, NNC powers ethical AI development,
+        decentralized marketplaces, and proof-of-contribution models that reward genuine engagement.
+        Our goal is to restore integrity to the blockchain space through real-world utility, verified
+        transparency, and community-driven growth.
+      </p>
+      <div class="btn-row">
+        <a href="#presale"><button class="btn-primary">View Pre-Sale</button></a>
+        <a href="#docs"><button class="btn-secondary">Read Whitepaper</button></a>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">
+        <span>Token snapshot</span>
+        <span class="status-pill">metadata syncing</span>
+      </div>
+      <div class="kv-row"><span class="kv-label">Network</span><span class="kv-value">Solana (Token-2022)</span></div>
+      <div class="kv-row"><span class="kv-label">Mint</span><span class="kv-value">BhwvuTEBCdYYCUVWSCmpekG42TrpNQxNUGHyR5rQtxtF</span></div>
+      <div class="kv-row"><span class="kv-label">Treasury</span><span class="kv-value">JD2sVKxN11Ezn4AYVD4s2JiRUt1Y5Rb5SFueCD5FsmVN</span></div>
+      <div class="kv-row"><span class="kv-label">Stage</span><span class="kv-value">Website pre-sale (manual fulfill)</span></div>
+      <p class="small" style="margin-top:1rem;">Final token image will appear on explorers once Solana Explorer finishes cache refresh.</p>
+    </div>
+  </section>
+
+  <section class="section" id="about">
+    <h2>Why this site first?</h2>
+    <p class="muted" style="max-width:46rem;">
+      Instead of throwing NNC straight into a liquidity pool where bots and early dumpers can wreck the pricing,
+      we’re doing a controlled, on-site pre-sale. That means fixed price tiers, visible treasury, and manual or
+      backend-verified NNC distribution.
+    </p>
+  </section>
+
+  <section class="section" id="presale">
+    <h2>Pre-sale (prototype)</h2>
+    <p class="muted" style="max-width:40rem;">
+      Connect Phantom, send a payment to the NNC developer/treasury wallet, and we’ll later hook this into the
+      automatic NNC distributor. The NNC transfer-fee logic lives on-chain, so we don’t force it here.
+    </p>
+    <p class="muted" style="margin-top:1rem; margin-bottom:1.2rem;">
+      <strong>Presale Rules:</strong><br>
+      • 1 NNC = $0.0001 USD (≈ 15 800 NNC per 0.01 SOL)<br>
+      • Minimum contribution: 0.005 SOL (≈ $0.79 USD)<br>
+      • Maximum per wallet: 0.25 SOL (≈ $39.50 USD ≈ 395 000 NNC)<br>
+      • Manual distribution — tokens are sent to the same wallet after verification.<br>
+    </p>
+
+    <div class="presale-box">
+      <p style="font-weight:600; margin-bottom:.5rem;">1. Connect wallet</p>
+      <button id="connectBtn" class="pay-btn">Connect Phantom</button>
+      <div id="walletAddr" class="status-text"></div>
+
+      <p style="font-weight:600; margin-top:1.3rem; margin-bottom:.5rem;">2. Send Payment</p>
+      <p class="small">
+        This sends <strong>0.01 SOL</strong> to the NNC developer treasury at
+        <code style="font-size:.6rem;">JD2sVKxN11Ezn4AYVD4s2JiRUt1Y5Rb5SFueCD5FsmVN</code>.
+      </p>
+      <button id="payBtn" class="pay-btn" onclick="sendPayment()" disabled>Pay 0.01 SOL to NNC</button>
+      <div id="txStatus" class="status-text"></div>
+      <p class="small" style="margin-top:.8rem;">
+        After payment, you can verify the signature directly on
+        <a href="https://explorer.solana.com/" target="_blank" style="color:var(--accent); text-decoration:none;">Solana Explorer</a>.
+      </p>
+    </div>
+  </section>
+
+  <section class="section" id="docs">
+    <h2>Docs & resources</h2>
+    <p class="muted">Latest whitepaper and roadmap are hosted on GitHub and Substack.</p>
+    <ul style="list-style:none; padding-left:0; margin-top:1rem; display:grid; gap:.5rem;">
+      <li>• GitHub (whitepaper + token-2022 notes): <a href="https://github.com/HallbjornDeFi/NeuralNetCoin" style="color:var(--accent);" target="_blank" rel="noreferrer">github.com/HallbjornDeFi/NeuralNetCoin</a></li>
+      <li>• Marketplace beta concept — NNC-only services</li>
+      <li>• Token metadata updates log</li>
+    </ul>
+  </section>
+
+  <footer>NeuralNet Coin — transparent, utility-first, AI-aligned.</footer>
+
+  <!-- Globals required by web3/browser builds -->
   <script>
-    if (!window.global) window.global = window;             /* some deps read global */
-    if (!window.process) window.process = { env: {} };      /* some deps read process.env */
+    if (!window.global) window.global = window;          /* some deps read global */
+    if (!window.process) window.process = { env: {} };   /* some deps read process.env */
   </script>
 
-  <!-- 2) Buffer polyfill (NO tiny fallback) -->
+  <!-- Buffer polyfill BEFORE web3 -->
   <script src="https://cdn.jsdelivr.net/npm/buffer@6.0.3/index.min.js"
           crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <script>
     (function () {
-      // derive from UMD global
-      var B = window?.buffer?.Buffer;
-      if (!B) {
-        document.body.insertAdjacentHTML('beforeend',
-          '<div style="color:#fecaca">Buffer polyfill failed to load.</div>');
-        throw new Error('Buffer polyfill failed to load');
-      }
-      // expose consistently
+      const B = window?.buffer?.Buffer;
+      if (!B) throw new Error('Buffer polyfill failed to load');
       window.Buffer = B;
-      if (typeof globalThis !== 'undefined') {
-        globalThis.Buffer = B;
-        globalThis.buffer = { Buffer: B };
-      }
-      if (!window.buffer) window.buffer = { Buffer: B };
-      // harden to avoid accidental overwrite
-      try { Object.freeze(window.Buffer); } catch {}
-      // quick assert
+      globalThis.Buffer = B;
+      window.buffer ||= { Buffer: B };
+      globalThis.buffer ||= { Buffer: B };
       console.log('[NNC] Buffer OK:', typeof Buffer.alloc === 'function');
     })();
   </script>
 
-  <!-- 3) web3 AFTER polyfills (pin to known-good) -->
-  <script src="https://unpkg.com/@solana/web3.js@1.91.9/lib/index.iife.js"></script>
+  <!-- web3 AFTER polyfills (keeping your 1.95.0 pin) -->
+  <script src="https://unpkg.com/@solana/web3.js@1.95.0/lib/index.iife.js"></script>
 
-  <!-- 4) App logic -->
   <script>
     const connectBtn = document.getElementById("connectBtn");
     const payBtn = document.getElementById("payBtn");
@@ -80,6 +170,39 @@
       if (window.solana?.isPhantom) return window.solana;
       if (window.phantom?.solana) return window.phantom.solana;
       return null;
+    }
+
+    // u64 LE encoder to avoid Blob.encode errors
+    function u64LEBytes(value) {
+      const v = typeof value === 'bigint' ? value : BigInt(value);
+      const buf = new ArrayBuffer(8);
+      const view = new DataView(buf);
+      if (typeof view.setBigUint64 === 'function') {
+        view.setBigUint64(0, v, true);
+        return new Uint8Array(buf);
+      }
+      // fallback if setBigUint64 missing
+      let x = v;
+      const out = new Uint8Array(8);
+      for (let i = 0; i < 8; i++) { out[i] = Number(x & 0xffn); x >>= 8n; }
+      return out;
+    }
+
+    // Build SystemProgram.transfer manually (stable across web3 versions)
+    function createSystemTransferIx(from, to, lamportsNumber) {
+      const keys = [
+        { pubkey: from, isSigner: true, isWritable: true },
+        { pubkey: to,   isSigner: false, isWritable: true },
+      ];
+      const data = new Uint8Array(12);
+      const view = new DataView(data.buffer);
+      view.setUint32(0, 2, true);                         /* 2 = SystemInstruction.Transfer */
+      data.set(u64LEBytes(lamportsNumber), 4);            /* lamports as u64 LE */
+      return new solanaWeb3.TransactionInstruction({
+        programId: solanaWeb3.SystemProgram.programId,
+        keys,
+        data,
+      });
     }
 
     async function connectWallet() {
@@ -108,26 +231,24 @@
           "confirmed"
         );
 
-        const lamports = Math.floor(0.01 * solanaWeb3.LAMPORTS_PER_SOL);
+        const lamports = Math.floor(0.01 * solanaWeb3.LAMPORTS_PER_SOL); /* 10_000_000 */
 
-        const tx = new solanaWeb3.Transaction().add(
-          solanaWeb3.SystemProgram.transfer({
-            fromPubkey: provider.publicKey,
-            toPubkey: new solanaWeb3.PublicKey(TREASURY),
-            lamports, // must be a JS number (<= 2^53-1) — here it's 10_000_000
-          })
+        // Manual transfer IX avoids Blob.encode[lamports] path
+        const ix = createSystemTransferIx(
+          provider.publicKey,
+          new solanaWeb3.PublicKey(TREASURY),
+          lamports
         );
 
+        const tx = new solanaWeb3.Transaction().add(ix);
         tx.feePayer = provider.publicKey;
-        const { blockhash, lastValidBlockHeight } =
-          await connection.getLatestBlockhash("finalized");
+        const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash("finalized");
         tx.recentBlockhash = blockhash;
 
         let sig;
         if (typeof provider.signAndSendTransaction === "function") {
-          // fewer serialization edge-cases in some wallets
-          const res = await provider.signAndSendTransaction(tx);
-          sig = res.signature ?? res; // Phantom returns { signature }
+          const res = await provider.signAndSendTransaction(tx);       /* fewer serialization edge cases */
+          sig = res.signature ?? res;
         } else {
           const signed = await provider.signTransaction(tx);
           sig = await connection.sendRawTransaction(signed.serialize());
@@ -135,10 +256,7 @@
 
         txStatus.innerHTML = `⏳ Sent. Waiting for confirmation...<br>Sig: ${sig}`;
 
-        await connection.confirmTransaction(
-          { signature: sig, blockhash, lastValidBlockHeight },
-          "confirmed"
-        );
+        await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, "confirmed");
 
         txStatus.innerHTML = `✅ 0.01 SOL sent!<br>
           🔗 <a href="https://explorer.solana.com/tx/${sig}?cluster=mainnet-beta" target="_blank" style="color:#38bdf8;">View on Solana Explorer</a>`;
@@ -149,10 +267,6 @@
     }
 
     connectBtn.addEventListener("click", connectWallet);
-
-    // Optional quick health check in console
-    console.log('[NNC] Sanity:',
-      { hasBuffer: !!window.Buffer, hasAlloc: !!Buffer.alloc, hasWeb3: !!window.solanaWeb3 });
   </script>
 </body>
 </html>
