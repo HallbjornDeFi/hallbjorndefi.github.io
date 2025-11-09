@@ -163,4 +163,355 @@
     })();
   </script>
 
-  <!-- Your configured RPC (keep you
+  <!-- Your configured RPC (keep your Helius URL or override) -->
+  <script>
+    window.__NNC_RPC__ = window.__NNC_RPC__ || "https://mainnet.helius-rpc.com/?api-key=e259f5af-7b93-4753-b6d2-3f75b5571108";
+  </script>
+
+  <!-- web3 AFTER polyfills -->
+  <script src="https://unpkg.com/@solana/web3.js@1.95.0/lib/index.iife.js"></script>
+
+  <script>
+    const connectBtn = document.getElementById("connectBtn");
+    const openPhantomBtn = document.getElementById("openPhantomBtn");
+    const payBtn = document.getElementById("payBtn");
+    const setRpcBtn = document.getElementById("setRpcBtn");
+    const walletAddr = document.getElementById("walletAddr");
+    const txStatus = document.getElementById("txStatus");
+    const amountInput = document.getElementById("amountSol");
+    const amountHelp = document.getElementById("amountHelp");
+    const memoInput = document.getElementById("memoInput");
+
+    const TREASURY = "JD2sVKxN11Ezn4AYVD4s2JiRUt1Y5Rb5SFueCD5FsmVN";
+    const CLUSTER = "mainnet-beta";
+    const MIN_SOL = 0.005, MAX_SOL = 0.25;
+
+    function getProvider() {
+      if (window.solana?.isPhantom) return window.solana;
+      if (window.phantom?.solana) return window.phantom.solana;
+      return null;
+    }
+
+    /* Mobile helpers (show CTA only; main deep-link fix is appended at end) */
+    function isMobileWeb() {
+      const ua = navigator.userAgent || '';
+      const mobile = /Android|iPhone|iPad|iPod/i.test(ua);
+      const injected = !!(window.solana?.isPhantom || window.phantom?.solana);
+      return mobile && !injected;
+    }
+    function phantomBrowseLink() {
+      return `https://phantom.app/ul/browse/${encodeURIComponent(location.href)}`;
+    }
+    function updateMobilePhantomCta() {
+      const show = isMobileWeb();
+      if (openPhantomBtn) openPhantomBtn.style.display = show ? 'inline-block' : 'none';
+      if (show) walletAddr.textContent = '📱 Open this page inside the Phantom app to connect.';
+      else if (!getProvider()) walletAddr.textContent = '';
+    }
+    if (openPhantomBtn) {
+      openPhantomBtn.addEventListener('click', () => { location.href = phantomBrowseLink(); });
+    }
+    document.addEventListener('visibilitychange', updateMobilePhantomCta);
+    window.addEventListener('pageshow', updateMobilePhantomCta);
+
+    // RPC resolver (query → localStorage → window var → cluster)
+    function resolveRpc() {
+      try { const qp = new URLSearchParams(location.search).get('rpc'); if (qp) return qp; } catch {}
+      try { const stored = localStorage.getItem('NNC_RPC'); if (stored) return stored; } catch {}
+      const candidate = window.__NNC_RPC__;
+      const looksPlaceholder = typeof candidate === 'string' && /REPLACE_|YOUR_(KEY|API_KEY)|YOUR-SUBDOMAIN/i.test(candidate);
+      if (candidate && !looksPlaceholder) return candidate;
+      return solanaWeb3.clusterApiUrl(CLUSTER);
+    }
+
+    // Price cache
+    let lastPriceUSD = null, lastPriceAt = 0;
+    async function getSolUsd() {
+      const now = Date.now();
+      if (lastPriceUSD && (now - lastPriceAt) < 60_000) return lastPriceUSD;
+      try {
+        const r = await fetch('https://api.coinbase.com/v2/prices/SOL-USD/spot', {cache:'no-store'});
+        const j = await r.json(); const v = parseFloat(j?.data?.amount);
+        if (Number.isFinite(v)) { lastPriceUSD = v; lastPriceAt = now; return v; }
+      } catch {}
+      try {
+        const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd', {cache:'no-store'});
+        const j = await r.json(); const v = parseFloat(j?.solana?.usd);
+        if (Number.isFinite(v)) { lastPriceUSD = v; lastPriceAt = now; return v; }
+      } catch {}
+      return null;
+    }
+
+    // Exact SOL→lamports
+    function solToLamportsBigInt(solStr) {
+      const s = String(solStr ?? '').trim();
+      if (!/^\d+(\.\d+)?$/.test(s)) return null;
+      const [i, f=''] = s.split('.');
+      if (f.length > 9) return null;
+      const intPart = BigInt(i) * 1_000_000_000n;
+      const fracPart = BigInt((f + '000000000').slice(0,9));
+      return intPart + fracPart;
+    }
+
+    function u64LEBytes(v) {
+      const b = (typeof v === 'bigint') ? v : BigInt(v);
+      const buf = new ArrayBuffer(8), view = new DataView(buf);
+      if (view.setBigUint64) { view.setBigUint64(0, b, true); return new Uint8Array(buf); }
+      let x=b; const out=new Uint8Array(8); for(let i=0;i<8;i++){ out[i]=Number(x&0xffn); x>>=8n; } return out;
+    }
+
+    function createSystemTransferIx(from, to, lamportsBig) {
+      const keys = [
+        { pubkey: from, isSigner: true, isWritable: true },
+        { pubkey: to,   isSigner: false, isWritable: true },
+      ];
+      const data = new Uint8Array(12);
+      new DataView(data.buffer).setUint32(0, 2, true);
+      data.set(u64LEBytes(lamportsBig), 4);
+      return new solanaWeb3.TransactionInstruction({ programId: solanaWeb3.SystemProgram.programId, keys, data });
+    }
+
+    function createMemoIx(text) {
+      const memo = String(text || '').trim();
+      if (!memo) return null;
+      const bytes = Buffer.from(memo, 'utf8');
+      if (bytes.length > 120) throw new Error('Memo too long (max ~120 bytes).');
+      return new solanaWeb3.TransactionInstruction({
+        programId: new solanaWeb3.PublicKey('MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr'),
+        keys: [],
+        data: bytes,
+      });
+    }
+
+    async function connectWallet() {
+      const provider = getProvider();
+      if (!provider) {
+        if (isMobileWeb()) {
+          walletAddr.textContent = '📱 Open this page inside the Phantom app to connect.';
+          updateMobilePhantomCta();
+        } else {
+          alert("Phantom Wallet not found! Install it from https://phantom.app");
+        }
+        return;
+      }
+      try {
+        const resp = await provider.connect();
+        walletAddr.textContent = `✅ Connected: ${resp.publicKey.toString()}`;
+        updateUiState();
+      } catch (e) {
+        console.error(e);
+        walletAddr.textContent = "❌ Wallet connection rejected.";
+      }
+    }
+
+    async function buildTransferTx(connection, provider, lamportsBig, memoText) {
+      const to = new solanaWeb3.PublicKey(TREASURY);
+      const ix1 = createSystemTransferIx(provider.publicKey, to, lamportsBig);
+      const tx = new solanaWeb3.Transaction().add(ix1);
+      const ix2 = createMemoIx(memoText);
+      if (ix2) tx.add(ix2);
+      tx.feePayer = provider.publicKey;
+      const { blockhash } = await connection.getLatestBlockhash("finalized");
+      tx.recentBlockhash = blockhash;
+      return tx;
+    }
+
+    function looksLikeBlockhashError(err) {
+      const s = (err?.message || String(err || '')).toLowerCase();
+      return s.includes('blockhash not found') || s.includes('blockhash expired') || s.includes('transaction expired');
+    }
+    function looksLikeForbidden(err) {
+      const s = (err?.message || String(err || '')).toLowerCase();
+      return s.includes('403') || s.includes('forbidden') || s.includes('"code": 403');
+    }
+
+    async function sendPayWithRetry(connection, provider, lamportsBig, memoText) {
+      payBtn.disabled = true;
+      try {
+        let tx = await buildTransferTx(connection, provider, lamportsBig, memoText);
+        let sig;
+        if (typeof provider.signAndSendTransaction === "function") {
+          const res = await provider.signAndSendTransaction(tx);
+          sig = res.signature ?? res;
+        } else {
+          const signed = await provider.signTransaction(tx);
+          sig = await connection.sendRawTransaction(signed.serialize());
+        }
+        return sig;
+      } catch (err) {
+        if (looksLikeForbidden(err)) throw new Error('RPC 403. Click "Set RPC" and paste your provider URL.');
+        if (!looksLikeBlockhashError(err)) throw err;
+        let tx = await buildTransferTx(connection, provider, lamportsBig, memoText);
+        if (typeof provider.signAndSendTransaction === "function") {
+          const res = await provider.signAndSendTransaction(tx);
+          return res.signature ?? res;
+        } else {
+          const signed = await provider.signTransaction(tx);
+          return await connection.sendRawTransaction(signed.serialize());
+        }
+      }
+    }
+
+    async function sendPayment() {
+      const provider = getProvider();
+      if (!provider) {
+        if (isMobileWeb()) {
+          walletAddr.textContent = '📱 Open this page inside the Phantom app to connect.';
+          updateMobilePhantomCta();
+        } else {
+          alert("Please install / connect Phantom first!");
+        }
+        return;
+      }
+      if (!provider.publicKey) { alert("Please connect Phantom first!"); return; }
+
+      const amtStr = String(amountInput.value || '').trim();
+      const amt = parseFloat(amtStr);
+      const lamportsBig = solToLamportsBigInt(amtStr);
+      if (!Number.isFinite(amt) || amt < MIN_SOL || amt > MAX_SOL || !lamportsBig) {
+        amountHelp.classList.add('error');
+        amountHelp.textContent = `Amount must be between ${MIN_SOL} and ${MAX_SOL} SOL.`;
+        return;
+      }
+
+      try {
+        txStatus.textContent = "Building transaction...";
+        payBtn.disabled = true;
+
+        const rpc = resolveRpc();
+        const connection = new solanaWeb3.Connection(rpc, { commitment: "confirmed" });
+
+        const sig = await sendPayWithRetry(connection, provider, lamportsBig, memoInput.value);
+        txStatus.innerHTML = `⏳ Sent. Waiting for confirmation...<br>Sig: ${sig}`;
+
+        const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash("finalized");
+        await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, "confirmed");
+
+        txStatus.innerHTML = `✅ ${amtStr} SOL sent!<br>
+          🔗 <a href="https://explorer.solana.com/tx/${sig}?cluster=${CLUSTER}" target="_blank" style="color:#38bdf8;">View on Solana Explorer</a>`;
+      } catch (err) {
+        console.error(err);
+        txStatus.textContent = "❌ " + (err.message || String(err));
+        payBtn.disabled = false;
+      }
+    }
+
+    // UI helpers
+    async function refreshUsdEstimate() {
+      const amtStr = String(amountInput.value || '').trim();
+      const amt = parseFloat(amtStr);
+      const price = await getSolUsd();
+      const parts = [`Min ${MIN_SOL}`, `Max ${MAX_SOL}`];
+      if (Number.isFinite(amt) && price) {
+        const usd = amt * price;
+        parts.push(`≈ $${usd.toFixed(2)} @ $${price.toFixed(2)}/SOL`);
+      } else parts.push('≈ $—');
+      amountHelp.classList.toggle('error', !(Number.isFinite(amt) && amt >= MIN_SOL && amt <= MAX_SOL));
+      amountHelp.textContent = parts.join(' • ');
+    }
+    function updatePayButtonText() {
+      const v = String(amountInput.value || '').trim();
+      payBtn.textContent = `Pay ${v || '—'} SOL to NNC`;
+    }
+    function updateUiState() {
+      const connected = !!getProvider()?.publicKey;
+      const amt = parseFloat(String(amountInput.value || '').trim());
+      const validAmt = Number.isFinite(amt) && amt >= MIN_SOL && amt <= MAX_SOL;
+      payBtn.disabled = !(connected && validAmt);
+      updateMobilePhantomCta();
+    }
+
+    // Set RPC prompt
+    async function promptAndSaveRpc() {
+      try {
+        const current = (localStorage.getItem('NNC_RPC') || window.__NNC_RPC__ || '').trim();
+        const input = prompt('Enter your Solana RPC URL (Helius/Alchemy/QuickNode):', current);
+        if (!input) return;
+        let url;
+        try { url = new URL(input.trim()); if (!/^https?:$/i.test(url.protocol)) throw new Error(); } catch { alert('Invalid URL. Please paste a full https URL.'); return; }
+        localStorage.setItem('NNC_RPC', url.toString()); window.__NNC_RPC__ = url.toString();
+        txStatus.textContent = 'Testing RPC...';
+        const testConn = new solanaWeb3.Connection(url.toString(), { commitment: 'processed' });
+        await testConn.getLatestBlockhash('processed');
+        txStatus.textContent = '✅ RPC set and reachable.';
+        if (getProvider()?.publicKey) updateUiState();
+        if (setRpcBtn) setRpcBtn.style.display = 'none';
+      } catch (e) {
+        console.error(e);
+        txStatus.textContent = '❌ RPC test failed. Check CORS / key / URL.';
+      }
+    }
+
+    // Init
+    window.addEventListener('load', async () => {
+      try {
+        const candidate = resolveRpc();
+        if (candidate) {
+          try { localStorage.setItem('NNC_RPC', candidate); } catch {}
+          const testConn = new solanaWeb3.Connection(candidate, { commitment: 'processed' });
+          await testConn.getLatestBlockhash('processed');
+          if (setRpcBtn) setRpcBtn.style.display = 'none';
+          txStatus.textContent = '✅ RPC configured.';
+        }
+      } catch (_) {}
+      await refreshUsdEstimate();
+      updatePayButtonText();
+      updateUiState();
+    });
+
+    // Events
+    connectBtn.addEventListener("click", connectWallet);
+    setRpcBtn.addEventListener("click", promptAndSaveRpc);
+    amountInput.addEventListener("input", async () => {
+      updatePayButtonText(); updateUiState(); await refreshUsdEstimate();
+    });
+    memoInput.addEventListener("input", updateUiState);
+  </script>
+
+  <!-- MOBILE FIX: deep-link to Phantom on mobile when provider isn't injected -->
+  <script>
+  (function(){
+    function getProv(){return (window.solana&&window.solana.isPhantom&&window.solana)||(window.phantom&&window.phantom.solana)||null;}
+    function isMobileNoProv(){var ua=navigator.userAgent||'';var m=/Android|iPhone|iPad|iPod/i.test(ua);return m && !getProv();}
+    function deepLink(){return 'https://phantom.app/ul/browse/'+encodeURIComponent(location.href);}
+    function updateCTA(){
+      var btn=document.getElementById('openPhantomBtn'); var addr=document.getElementById('walletAddr');
+      if(!btn||!addr) return;
+      if(isMobileNoProv()){btn.style.display='inline-block'; if(!addr.textContent) addr.textContent='📱 Open this page inside the Phantom app to connect.';}
+      else {btn.style.display='none';}
+    }
+    function bind(){
+      var connect=document.getElementById('connectBtn');
+      var pay=document.getElementById('payBtn');
+      var openBtn=document.getElementById('openPhantomBtn');
+      var addr=document.getElementById('walletAddr');
+
+      if(openBtn){ openBtn.addEventListener('click', function(){ location.href=deepLink(); }); }
+
+      if(connect){
+        connect.addEventListener('click', function(e){
+          if(isMobileNoProv()){
+            e.preventDefault(); e.stopImmediatePropagation();
+            if(addr) addr.textContent='📱 Opening Phantom…';
+            location.href=deepLink();
+          }
+        }, {capture:true});
+      }
+      if(pay){
+        pay.addEventListener('click', function(e){
+          if(isMobileNoProv()){
+            e.preventDefault(); e.stopImmediatePropagation();
+            if(addr) addr.textContent='📱 Opening Phantom…';
+            location.href=deepLink();
+          }
+        }, {capture:true});
+      }
+      updateCTA();
+      document.addEventListener('visibilitychange', updateCTA);
+      window.addEventListener('pageshow', updateCTA);
+    }
+    if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded', bind);} else {bind();}
+  })();
+  </script>
+</body>
+</html>
