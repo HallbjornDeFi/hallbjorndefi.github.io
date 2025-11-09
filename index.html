@@ -1,4 +1,4 @@
-<!doctype html>
+<!doctype html> 
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -137,8 +137,8 @@
 
   <!-- Globals required by web3/browser builds -->
   <script>
-    if (!window.global) window.global = window;          /* why: some deps read global */
-    if (!window.process) window.process = { env: {} };   /* why: some deps read process.env */
+    if (!window.global) window.global = window;
+    if (!window.process) window.process = { env: {} };
   </script>
 
   <!-- Buffer polyfill BEFORE web3 -->
@@ -152,6 +152,15 @@
     })();
   </script>
 
+  <!-- NEW: Default RPC placeholder (replace with your key) -->
+  <script>
+    // Helius default; replace the API key or set your own before this script.
+    window.__NNC_RPC__ = window.__NNC_RPC__ || "https://mainnet.helius-rpc.com/?api-key=REPLACE_WITH_API_KEY";
+    // Alternatives:
+    // window.__NNC_RPC__ = "https://solana-mainnet.g.alchemy.com/v2/REPLACE_WITH_API_KEY";
+    // window.__NNC_RPC__ = "https://YOUR-SUBDOMAIN.solana-mainnet.quiknode.pro/REPLACE_WITH_API_KEY/";
+  </script>
+
   <!-- web3 AFTER polyfills -->
   <script src="https://unpkg.com/@solana/web3.js@1.95.0/lib/index.iife.js"></script>
 
@@ -163,7 +172,7 @@
 
     const TREASURY = "JD2sVKxN11Ezn4AYVD4s2JiRUt1Y5Rb5SFueCD5FsmVN";
     const CLUSTER = "mainnet-beta";
-    const LAMPORTS_TO_SEND = 10_000_000; /* why: avoid FP math */
+    const LAMPORTS_TO_SEND = 10_000_000;
 
     function getProvider() {
       if (window.solana?.isPhantom) return window.solana;
@@ -171,7 +180,23 @@
       return null;
     }
 
-    // u64 LE encoder (why: avoid Blob.encode[lamports] edge cases)
+    // RPC resolver: ?rpc=... → localStorage → window.__NNC_RPC__ (ignores placeholders) → clusterApiUrl
+    function resolveRpc() {
+      try {
+        const qp = new URLSearchParams(location.search).get('rpc');
+        if (qp) return qp;
+      } catch {}
+      try {
+        const stored = localStorage.getItem('NNC_RPC');
+        if (stored) return stored;
+      } catch {}
+      const candidate = window.__NNC_RPC__;
+      const looksPlaceholder = typeof candidate === 'string' &&
+        /REPLACE_|YOUR_(KEY|API_KEY)|YOUR-SUBDOMAIN/i.test(candidate);
+      if (candidate && !looksPlaceholder) return candidate;
+      return solanaWeb3.clusterApiUrl(CLUSTER);
+    }
+
     function u64LEBytes(value) {
       const v = typeof value === 'bigint' ? value : BigInt(value);
       const buf = new ArrayBuffer(8);
@@ -189,8 +214,8 @@
       ];
       const data = new Uint8Array(12);
       const view = new DataView(data.buffer);
-      view.setUint32(0, 2, true);              /* 2 = SystemInstruction.Transfer */
-      data.set(u64LEBytes(lamportsNumber), 4); /* lamports as u64 LE */
+      view.setUint32(0, 2, true);
+      data.set(u64LEBytes(lamportsNumber), 4);
       return new solanaWeb3.TransactionInstruction({
         programId: solanaWeb3.SystemProgram.programId,
         keys,
@@ -228,12 +253,14 @@
       const s = (err?.message || String(err || '')).toLowerCase();
       return s.includes('blockhash not found') || s.includes('blockhash expired') || s.includes('transaction expired');
     }
+    function looksLikeForbidden(err) {
+      const s = (err?.message || String(err || '')).toLowerCase();
+      return s.includes('403') || s.includes('forbidden') || s.includes('"code": 403');
+    }
 
     async function sendPayWithRetry(connection, provider) {
-      // disable button to prevent double-clicks
       payBtn.disabled = true;
       try {
-        // try 1
         let tx = await buildTransferTx(connection, provider);
         let sig;
         if (typeof provider.signAndSendTransaction === "function") {
@@ -245,8 +272,12 @@
         }
         return sig;
       } catch (err) {
+        if (looksLikeForbidden(err)) {
+          throw new Error(
+            'RPC 403 (Access forbidden). Provide a RPC URL: add ?rpc=YOUR_RPC_URL, or set localStorage.NNC_RPC, or set window.__NNC_RPC__ (e.g. Helius/Alchemy/QuickNode).'
+          );
+        }
         if (!looksLikeBlockhashError(err)) throw err;
-        // retry once with a fresh blockhash
         let tx = await buildTransferTx(connection, provider);
         if (typeof provider.signAndSendTransaction === "function") {
           const res = await provider.signAndSendTransaction(tx);
@@ -255,9 +286,6 @@
           const signed = await provider.signTransaction(tx);
           return await connection.sendRawTransaction(signed.serialize());
         }
-      } finally {
-        // re-enable only if not connected (will be re-disabled in sendPayment flow)
-        // kept minimal; sendPayment manages the state
       }
     }
 
@@ -270,10 +298,8 @@
         txStatus.textContent = "Building transaction...";
         payBtn.disabled = true;
 
-        const connection = new solanaWeb3.Connection(
-          solanaWeb3.clusterApiUrl(CLUSTER),
-          "confirmed"
-        );
+        const rpc = resolveRpc();
+        const connection = new solanaWeb3.Connection(rpc, { commitment: "confirmed" });
 
         const sig = await sendPayWithRetry(connection, provider);
         txStatus.innerHTML = `⏳ Sent. Waiting for confirmation...<br>Sig: ${sig}`;
