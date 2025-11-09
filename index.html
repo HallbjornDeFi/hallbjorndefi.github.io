@@ -28,6 +28,7 @@
     .status-pill{background:rgba(250,204,21,.12);color:#fde68a;font-size:.65rem;padding:.35rem .6rem;border-radius:9999px}
     .pay-btn{background:#fff;color:#000;border:none;padding:.55rem 1rem;border-radius:.5rem;font-weight:600;cursor:pointer;font-size:.75rem}.pay-btn:disabled{opacity:.35;cursor:not-allowed}
     .status-text{font-size:.7rem;margin-top:.55rem;color:#bae6fd;word-break:break-all}
+    .linkish{background:transparent;border:1px solid rgba(226,232,255,.12);color:#fff;padding:.55rem 1rem;border-radius:.5rem;font-weight:500;cursor:pointer;font-size:.75rem}
   </style>
 </head>
 <body>
@@ -114,7 +115,11 @@
         This sends <strong>0.01 SOL</strong> to the NNC developer treasury at
         <code style="font-size:.6rem;">JD2sVKxN11Ezn4AYVD4s2JiRUt1Y5Rb5SFueCD5FsmVN</code>.
       </p>
-      <button id="payBtn" class="pay-btn" onclick="sendPayment()" disabled>Pay 0.01 SOL to NNC</button>
+      <div class="btn-row" style="margin:.4rem 0 .2rem;">
+        <button id="payBtn" class="pay-btn" onclick="sendPayment()" disabled>Pay 0.01 SOL to NNC</button>
+        <!-- NEW: Set RPC button (non-invasive) -->
+        <button id="setRpcBtn" class="linkish" type="button" title="Set your Solana RPC endpoint">Set RPC</button>
+      </div>
       <div id="txStatus" class="status-text"></div>
       <p class="small" style="margin-top:.8rem;">
         After payment, you can verify the signature directly on
@@ -152,13 +157,9 @@
     })();
   </script>
 
-  <!-- NEW: Default RPC placeholder (replace with your key) -->
+  <!-- Default RPC placeholder (you can still override it) -->
   <script>
-    // Helius default; replace the API key or set your own before this script.
     window.__NNC_RPC__ = window.__NNC_RPC__ || "https://mainnet.helius-rpc.com/?api-key=REPLACE_WITH_API_KEY";
-    // Alternatives:
-    // window.__NNC_RPC__ = "https://solana-mainnet.g.alchemy.com/v2/REPLACE_WITH_API_KEY";
-    // window.__NNC_RPC__ = "https://YOUR-SUBDOMAIN.solana-mainnet.quiknode.pro/REPLACE_WITH_API_KEY/";
   </script>
 
   <!-- web3 AFTER polyfills -->
@@ -167,6 +168,7 @@
   <script>
     const connectBtn = document.getElementById("connectBtn");
     const payBtn = document.getElementById("payBtn");
+    const setRpcBtn = document.getElementById("setRpcBtn");
     const walletAddr = document.getElementById("walletAddr");
     const txStatus = document.getElementById("txStatus");
 
@@ -180,7 +182,7 @@
       return null;
     }
 
-    // RPC resolver: ?rpc=... → localStorage → window.__NNC_RPC__ (ignores placeholders) → clusterApiUrl
+    // RPC resolver (unchanged, now with UI to set)
     function resolveRpc() {
       try {
         const qp = new URLSearchParams(location.search).get('rpc');
@@ -195,6 +197,38 @@
         /REPLACE_|YOUR_(KEY|API_KEY)|YOUR-SUBDOMAIN/i.test(candidate);
       if (candidate && !looksPlaceholder) return candidate;
       return solanaWeb3.clusterApiUrl(CLUSTER);
+    }
+
+    // NEW: prompt to set RPC and verify it
+    async function promptAndSaveRpc() {
+      try {
+        const current = (localStorage.getItem('NNC_RPC') || window.__NNC_RPC__ || '').trim();
+        const input = prompt('Enter your Solana RPC URL (Helius/Alchemy/QuickNode):', current);
+        if (!input) return;
+
+        let url;
+        try {
+          url = new URL(input.trim());
+          if (!/^https?:$/i.test(url.protocol)) throw new Error('Only http/https allowed');
+        } catch {
+          alert('Invalid URL. Please paste a full https URL.');
+          return;
+        }
+
+        // Save + smoke test
+        localStorage.setItem('NNC_RPC', url.toString());
+        window.__NNC_RPC__ = url.toString();
+
+        txStatus.textContent = 'Testing RPC...';
+        const testConn = new solanaWeb3.Connection(url.toString(), { commitment: 'processed' });
+        await testConn.getLatestBlockhash('processed');
+        txStatus.textContent = '✅ RPC set and reachable.';
+        // Enable Pay if wallet is connected
+        if (getProvider()?.publicKey) payBtn.disabled = false;
+      } catch (e) {
+        console.error(e);
+        txStatus.textContent = '❌ RPC test failed. Check CORS / key / URL.';
+      }
     }
 
     function u64LEBytes(value) {
@@ -274,7 +308,7 @@
       } catch (err) {
         if (looksLikeForbidden(err)) {
           throw new Error(
-            'RPC 403 (Access forbidden). Provide a RPC URL: add ?rpc=YOUR_RPC_URL, or set localStorage.NNC_RPC, or set window.__NNC_RPC__ (e.g. Helius/Alchemy/QuickNode).'
+            'RPC 403 (Access forbidden). Click "Set RPC" and paste a provider URL (Helius/Alchemy/QuickNode), or add ?rpc=YOUR_RPC_URL.'
           );
         }
         if (!looksLikeBlockhashError(err)) throw err;
@@ -317,6 +351,7 @@
     }
 
     connectBtn.addEventListener("click", connectWallet);
+    setRpcBtn.addEventListener("click", promptAndSaveRpc);
   </script>
 </body>
 </html>
