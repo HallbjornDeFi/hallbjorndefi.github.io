@@ -137,26 +137,22 @@
 
   <!-- Globals required by web3/browser builds -->
   <script>
-    if (!window.global) window.global = window;          /* some deps read global */
-    if (!window.process) window.process = { env: {} };   /* some deps read process.env */
+    if (!window.global) window.global = window;          /* why: some deps read global */
+    if (!window.process) window.process = { env: {} };   /* why: some deps read process.env */
   </script>
 
   <!-- Buffer polyfill BEFORE web3 -->
-  <script src="https://cdn.jsdelivr.net/npm/buffer@6.0.3/index.min.js"
-          crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdn.jsdelivr.net/npm/buffer@6.0.3/index.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <script>
     (function () {
       const B = window?.buffer?.Buffer;
       if (!B) throw new Error('Buffer polyfill failed to load');
-      window.Buffer = B;
-      globalThis.Buffer = B;
-      window.buffer ||= { Buffer: B };
-      globalThis.buffer ||= { Buffer: B };
-      console.log('[NNC] Buffer OK:', typeof Buffer.alloc === 'function');
+      window.Buffer = B; globalThis.Buffer = B;
+      window.buffer ||= { Buffer: B }; globalThis.buffer ||= { Buffer: B };
     })();
   </script>
 
-  <!-- web3 AFTER polyfills (keeping your 1.95.0 pin) -->
+  <!-- web3 AFTER polyfills -->
   <script src="https://unpkg.com/@solana/web3.js@1.95.0/lib/index.iife.js"></script>
 
   <script>
@@ -164,7 +160,10 @@
     const payBtn = document.getElementById("payBtn");
     const walletAddr = document.getElementById("walletAddr");
     const txStatus = document.getElementById("txStatus");
+
     const TREASURY = "JD2sVKxN11Ezn4AYVD4s2JiRUt1Y5Rb5SFueCD5FsmVN";
+    const CLUSTER = "mainnet-beta";
+    const LAMPORTS_TO_SEND = 10_000_000; /* why: avoid FP math */
 
     function getProvider() {
       if (window.solana?.isPhantom) return window.solana;
@@ -172,23 +171,17 @@
       return null;
     }
 
-    // u64 LE encoder to avoid Blob.encode errors
+    // u64 LE encoder (why: avoid Blob.encode[lamports] edge cases)
     function u64LEBytes(value) {
       const v = typeof value === 'bigint' ? value : BigInt(value);
       const buf = new ArrayBuffer(8);
       const view = new DataView(buf);
-      if (typeof view.setBigUint64 === 'function') {
-        view.setBigUint64(0, v, true);
-        return new Uint8Array(buf);
-      }
-      // fallback if setBigUint64 missing
-      let x = v;
-      const out = new Uint8Array(8);
+      if (view.setBigUint64) { view.setBigUint64(0, v, true); return new Uint8Array(buf); }
+      let x = v; const out = new Uint8Array(8);
       for (let i = 0; i < 8; i++) { out[i] = Number(x & 0xffn); x >>= 8n; }
       return out;
     }
 
-    // Build SystemProgram.transfer manually (stable across web3 versions)
     function createSystemTransferIx(from, to, lamportsNumber) {
       const keys = [
         { pubkey: from, isSigner: true, isWritable: true },
@@ -196,8 +189,8 @@
       ];
       const data = new Uint8Array(12);
       const view = new DataView(data.buffer);
-      view.setUint32(0, 2, true);                         /* 2 = SystemInstruction.Transfer */
-      data.set(u64LEBytes(lamportsNumber), 4);            /* lamports as u64 LE */
+      view.setUint32(0, 2, true);              /* 2 = SystemInstruction.Transfer */
+      data.set(u64LEBytes(lamportsNumber), 4); /* lamports as u64 LE */
       return new solanaWeb3.TransactionInstruction({
         programId: solanaWeb3.SystemProgram.programId,
         keys,
@@ -218,6 +211,56 @@
       }
     }
 
+    async function buildTransferTx(connection, provider) {
+      const ix = createSystemTransferIx(
+        provider.publicKey,
+        new solanaWeb3.PublicKey(TREASURY),
+        LAMPORTS_TO_SEND
+      );
+      const tx = new solanaWeb3.Transaction().add(ix);
+      tx.feePayer = provider.publicKey;
+      const { blockhash } = await connection.getLatestBlockhash("finalized");
+      tx.recentBlockhash = blockhash;
+      return tx;
+    }
+
+    function looksLikeBlockhashError(err) {
+      const s = (err?.message || String(err || '')).toLowerCase();
+      return s.includes('blockhash not found') || s.includes('blockhash expired') || s.includes('transaction expired');
+    }
+
+    async function sendPayWithRetry(connection, provider) {
+      // disable button to prevent double-clicks
+      payBtn.disabled = true;
+      try {
+        // try 1
+        let tx = await buildTransferTx(connection, provider);
+        let sig;
+        if (typeof provider.signAndSendTransaction === "function") {
+          const res = await provider.signAndSendTransaction(tx);
+          sig = res.signature ?? res;
+        } else {
+          const signed = await provider.signTransaction(tx);
+          sig = await connection.sendRawTransaction(signed.serialize());
+        }
+        return sig;
+      } catch (err) {
+        if (!looksLikeBlockhashError(err)) throw err;
+        // retry once with a fresh blockhash
+        let tx = await buildTransferTx(connection, provider);
+        if (typeof provider.signAndSendTransaction === "function") {
+          const res = await provider.signAndSendTransaction(tx);
+          return res.signature ?? res;
+        } else {
+          const signed = await provider.signTransaction(tx);
+          return await connection.sendRawTransaction(signed.serialize());
+        }
+      } finally {
+        // re-enable only if not connected (will be re-disabled in sendPayment flow)
+        // kept minimal; sendPayment manages the state
+      }
+    }
+
     async function sendPayment() {
       const provider = getProvider();
       if (!provider) { alert("Please install / connect Phantom first!"); return; }
@@ -225,44 +268,25 @@
 
       try {
         txStatus.textContent = "Building transaction...";
+        payBtn.disabled = true;
 
         const connection = new solanaWeb3.Connection(
-          solanaWeb3.clusterApiUrl("mainnet-beta"),
+          solanaWeb3.clusterApiUrl(CLUSTER),
           "confirmed"
         );
 
-        const lamports = Math.floor(0.01 * solanaWeb3.LAMPORTS_PER_SOL); /* 10_000_000 */
-
-        // Manual transfer IX avoids Blob.encode[lamports] path
-        const ix = createSystemTransferIx(
-          provider.publicKey,
-          new solanaWeb3.PublicKey(TREASURY),
-          lamports
-        );
-
-        const tx = new solanaWeb3.Transaction().add(ix);
-        tx.feePayer = provider.publicKey;
-        const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash("finalized");
-        tx.recentBlockhash = blockhash;
-
-        let sig;
-        if (typeof provider.signAndSendTransaction === "function") {
-          const res = await provider.signAndSendTransaction(tx);       /* fewer serialization edge cases */
-          sig = res.signature ?? res;
-        } else {
-          const signed = await provider.signTransaction(tx);
-          sig = await connection.sendRawTransaction(signed.serialize());
-        }
-
+        const sig = await sendPayWithRetry(connection, provider);
         txStatus.innerHTML = `⏳ Sent. Waiting for confirmation...<br>Sig: ${sig}`;
 
+        const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash("finalized");
         await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, "confirmed");
 
         txStatus.innerHTML = `✅ 0.01 SOL sent!<br>
-          🔗 <a href="https://explorer.solana.com/tx/${sig}?cluster=mainnet-beta" target="_blank" style="color:#38bdf8;">View on Solana Explorer</a>`;
+          🔗 <a href="https://explorer.solana.com/tx/${sig}?cluster=${CLUSTER}" target="_blank" style="color:#38bdf8;">View on Solana Explorer</a>`;
       } catch (err) {
         console.error(err);
         txStatus.textContent = "❌ " + (err.message || String(err));
+        payBtn.disabled = false;
       }
     }
 
