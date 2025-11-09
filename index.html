@@ -117,7 +117,6 @@
       </p>
       <div class="btn-row" style="margin:.4rem 0 .2rem;">
         <button id="payBtn" class="pay-btn" onclick="sendPayment()" disabled>Pay 0.01 SOL to NNC</button>
-        <!-- NEW: Set RPC button (non-invasive) -->
         <button id="setRpcBtn" class="linkish" type="button" title="Set your Solana RPC endpoint">Set RPC</button>
       </div>
       <div id="txStatus" class="status-text"></div>
@@ -157,9 +156,9 @@
     })();
   </script>
 
-  <!-- Default RPC placeholder (you can still override it) -->
+  <!-- Your Helius RPC URL -->
   <script>
-    window.__NNC_RPC__ = window.__NNC_RPC__ || "https://mainnet.helius-rpc.com/?api-key=REPLACE_WITH_API_KEY";
+    window.__NNC_RPC__ = "https://mainnet.helius-rpc.com/?api-key=e259f5af-7b93-4753-b6d2-3f75b5571108";
   </script>
 
   <!-- web3 AFTER polyfills -->
@@ -182,7 +181,6 @@
       return null;
     }
 
-    // RPC resolver (unchanged, now with UI to set)
     function resolveRpc() {
       try {
         const qp = new URLSearchParams(location.search).get('rpc');
@@ -194,12 +192,11 @@
       } catch {}
       const candidate = window.__NNC_RPC__;
       const looksPlaceholder = typeof candidate === 'string' &&
-        /REPLACE_|YOUR_(KEY|API_KEY)|YOUR-SUBDOMAIN/i.test(candidate);
+        /YOUR_HELIUS_KEY|REPLACE_|YOUR_(KEY|API_KEY)|YOUR-SUBDOMAIN/i.test(candidate);
       if (candidate && !looksPlaceholder) return candidate;
       return solanaWeb3.clusterApiUrl(CLUSTER);
     }
 
-    // NEW: prompt to set RPC and verify it
     async function promptAndSaveRpc() {
       try {
         const current = (localStorage.getItem('NNC_RPC') || window.__NNC_RPC__ || '').trim();
@@ -215,7 +212,6 @@
           return;
         }
 
-        // Save + smoke test
         localStorage.setItem('NNC_RPC', url.toString());
         window.__NNC_RPC__ = url.toString();
 
@@ -223,8 +219,8 @@
         const testConn = new solanaWeb3.Connection(url.toString(), { commitment: 'processed' });
         await testConn.getLatestBlockhash('processed');
         txStatus.textContent = '✅ RPC set and reachable.';
-        // Enable Pay if wallet is connected
         if (getProvider()?.publicKey) payBtn.disabled = false;
+        if (setRpcBtn) setRpcBtn.style.display = 'none';
       } catch (e) {
         console.error(e);
         txStatus.textContent = '❌ RPC test failed. Check CORS / key / URL.';
@@ -308,7 +304,7 @@
       } catch (err) {
         if (looksLikeForbidden(err)) {
           throw new Error(
-            'RPC 403 (Access forbidden). Click "Set RPC" and paste a provider URL (Helius/Alchemy/QuickNode), or add ?rpc=YOUR_RPC_URL.'
+            'RPC 403 (Access forbidden). Click "Set RPC" and paste your provider URL, or add ?rpc=YOUR_RPC_URL.'
           );
         }
         if (!looksLikeBlockhashError(err)) throw err;
@@ -349,6 +345,20 @@
         payBtn.disabled = false;
       }
     }
+
+    // Auto-apply configured Helius RPC on load, hide "Set RPC" if good
+    window.addEventListener('load', async () => {
+      try {
+        const candidate = resolveRpc();
+        if (candidate) {
+          try { localStorage.setItem('NNC_RPC', candidate); } catch {}
+          const testConn = new solanaWeb3.Connection(candidate, { commitment: 'processed' });
+          await testConn.getLatestBlockhash('processed');
+          if (setRpcBtn) setRpcBtn.style.display = 'none';
+          txStatus.textContent = '✅ RPC configured.';
+        }
+      } catch (_) { /* ignore */ }
+    });
 
     connectBtn.addEventListener("click", connectWallet);
     setRpcBtn.addEventListener("click", promptAndSaveRpc);
