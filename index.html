@@ -263,8 +263,19 @@
   <section class="section" id="presale">
     <h2>Pre-sale (prototype)</h2>
     <p class="muted" style="max-width:40rem;">
-      Connect Phantom, send a small test payment to the NNC treasury, and we’ll later hook this into the
+      Connect Phantom, send a payment to the NNC Developer treasury, and we’ll later hook this into the
       automatic NNC distributor. The NNC transfer-fee logic lives on-chain, so we don’t force it here.
+<p class="muted" style="margin-top:1rem; margin-bottom:1.2rem;">
+  <strong>Presale Rules:</strong><br>
+  • 1 NNC = $0.0001 USD (≈ 15 800 NNC per 0.01 SOL)<br>
+  • Minimum contribution: 0.005 SOL (≈ $0.79 USD)<br>
+  • Maximum per wallet: 0.25 SOL (≈ $39.50 USD ≈ 395 000 NNC)<br>
+  • Manual distribution — tokens are sent to the same wallet after verification.<br>
+</p>
+
+
+
+      
     </p>
 
     <div class="presale-box">
@@ -272,9 +283,9 @@
       <button id="connectBtn" class="pay-btn">Connect Phantom</button>
       <div id="walletAddr" class="status-text"></div>
 
-      <p style="font-weight:600; margin-top:1.3rem; margin-bottom:.5rem;">2. Send test payment</p>
-      <p class="small">This sends <strong>0.01 SOL</strong> to the NNC treasury at <code style="font-size:.6rem;">Cx1djt9qsLBfymbFAo4627T</code>.</p>
-      <button id="payBtn" class="pay-btn" disabled>Pay 0.01 SOL to NNC</button>
+      <p style="font-weight:600; margin-top:1.3rem; margin-bottom:.5rem;">2. Send Payment</p>
+      <p class="small">This sends <strong>0.01 SOL</strong> to the NNC Developer treasury at <code style="font-size:.6rem;">JD2sVKxN11Ezn4AYVD4s2JiRUt1Y5Rb5SFueCD5FsmVN</code>.</p>
+      <button id="payBtn" class="pay-btn" >Pay 0.01 SOL to NNC</button>
       <div id="txStatus" class="status-text"></div>
       <p class="small" style="margin-top:.8rem;">
         After payment, you can verify the signature directly on
