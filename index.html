@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>NeuralNet Coin (NNC)</title>
-  <!-- try png, fallback to jpg -->
   <link rel="icon" type="image/png" href="nnc_logo.png" />
   <style>
     :root {
@@ -42,7 +41,6 @@
       gap: .6rem;
       align-items: center;
     }
-    /* show whole logo, no crop */
     .coin-dot {
       width: 80px;
       height: auto;
@@ -187,7 +185,6 @@
   <header>
     <div class="nav-inner">
       <div class="logo-wrap">
-        <!-- try png, if 404 load jpg -->
         <img src="nnc_logo.png" onerror="this.onerror=null;this.src='nnc_logo.jpg';" alt="NeuralNet Coin logo" class="coin-dot" />
         <div>
           <div style="font-weight:600; font-size:.9rem;">NeuralNet Coin</div>
@@ -209,12 +206,13 @@
       <h1>NeuralNet Coin (NNC)</h1>
       <p class="muted">
         A transparent token for a social-AI economy. We’re rolling out marketplace payments and
-        controlled pre-sales before opening liquidity pools to the public. NeuralNet Coin (NNC) is more than a cryptocurrency — it’s the foundation for a transparent,
-  AI-driven economy where humans and intelligent systems collaborate through data, creativity,
-  and innovation. Built on the Solana Token-2022 standard, NNC powers ethical AI development, decentralized
-  marketplaces, and proof-of-contribution models that reward genuine engagement. Our goal is to restore integrity to the blockchain space through real-world utility, verified
-  transparency, and community-driven growth. Controlled pre-sales ensure fair distribution before
-  liquidity opens to the public.
+        controlled pre-sales before opening liquidity pools to the public.
+        NeuralNet Coin (NNC) is more than a cryptocurrency — it’s the foundation for a transparent,
+        AI-driven economy where humans and intelligent systems collaborate through data, creativity,
+        and innovation. Built on the Solana Token-2022 standard, NNC powers ethical AI development,
+        decentralized marketplaces, and proof-of-contribution models that reward genuine engagement.
+        Our goal is to restore integrity to the blockchain space through real-world utility, verified
+        transparency, and community-driven growth.
       </p>
       <div class="btn-row">
         <a href="#presale"><button class="btn-primary">View Pre-Sale</button></a>
@@ -265,17 +263,13 @@
     <p class="muted" style="max-width:40rem;">
       Connect Phantom, send a payment to the NNC Developer treasury, and we’ll later hook this into the
       automatic NNC distributor. The NNC transfer-fee logic lives on-chain, so we don’t force it here.
-<p class="muted" style="margin-top:1rem; margin-bottom:1.2rem;">
-  <strong>Presale Rules:</strong><br>
-  • 1 NNC = $0.0001 USD (≈ 15 800 NNC per 0.01 SOL)<br>
-  • Minimum contribution: 0.005 SOL (≈ $0.79 USD)<br>
-  • Maximum per wallet: 0.25 SOL (≈ $39.50 USD ≈ 395 000 NNC)<br>
-  • Manual distribution — tokens are sent to the same wallet after verification.<br>
-</p>
-
-
-
-      
+    </p>
+    <p class="muted" style="margin-top:1rem; margin-bottom:1.2rem;">
+      <strong>Presale Rules:</strong><br>
+      • 1 NNC = $0.0001 USD (≈ 15 800 NNC per 0.01 SOL)<br>
+      • Minimum contribution: 0.005 SOL (≈ $0.79 USD)<br>
+      • Maximum per wallet: 0.25 SOL (≈ $39.50 USD ≈ 395 000 NNC)<br>
+      • Manual distribution — tokens are sent to the same wallet after verification.<br>
     </p>
 
     <div class="presale-box">
@@ -284,8 +278,11 @@
       <div id="walletAddr" class="status-text"></div>
 
       <p style="font-weight:600; margin-top:1.3rem; margin-bottom:.5rem;">2. Send Payment</p>
-      <p class="small">This sends <strong>0.01 SOL</strong> to the NNC Developer treasury at <code style="font-size:.6rem;">JD2sVKxN11Ezn4AYVD4s2JiRUt1Y5Rb5SFueCD5FsmVN</code>.</p>
-      <button id="payBtn" class="pay-btn" >Pay 0.01 SOL to NNC</button>
+      <p class="small">
+        This sends <strong>0.01 SOL</strong> to the NNC Developer treasury at
+        <code style="font-size:.6rem;">JD2sVKxN11Ezn4AYVD4s2JiRUt1Y5Rb5SFueCD5FsmVN</code>.
+      </p>
+      <button id="payBtn" class="pay-btn" onclick="sendPayment()">Pay 0.01 SOL to NNC</button>
       <div id="txStatus" class="status-text"></div>
       <p class="small" style="margin-top:.8rem;">
         After payment, you can verify the signature directly on
@@ -293,85 +290,6 @@
       </p>
     </div>
   </section>
-
-  <!-- Phantom Wallet Integration (Enhanced: shows amount + balance) -->
-<script src="https://cdn.jsdelivr.net/npm/@solana/web3.js@latest/lib/index.iife.min.js"></script>
-<script>
-  // --- DOM element references ---
-  const connectBtn = document.getElementById("connectBtn");
-  const payBtn = document.getElementById("payBtn");
-  const walletAddr = document.getElementById("walletAddr");
-  const txStatus = document.getElementById("txStatus");
-
-  // --- Destination wallet: your Phantom address ---
-  const treasury = "JD2sVKxN11Ezn4AYVD4s2JiRUt1Y5Rb5SFueCD5FsmVN";
-
-  // --- Connect Phantom Wallet ---
-  async function connectWallet() {
-    const provider = window.phantom?.solana;
-    if (!provider?.isPhantom) {
-      alert("Phantom Wallet not found! Please install it from phantom.app.");
-      return;
-    }
-    const resp = await provider.connect();
-    walletAddr.textContent = `✅ Connected: ${resp.publicKey.toString()}`;
-    payBtn.disabled = false;
-  }
-
-  // --- Send 0.01 SOL and show balance ---
-  async function sendPayment() {
-    const provider = window.phantom?.solana;
-    if (!provider?.isPhantom) {
-      alert("Please connect Phantom first!");
-      return;
-    }
-
-    const connection = new solanaWeb3.Connection(
-      solanaWeb3.clusterApiUrl("mainnet-beta"),
-      "confirmed"
-    );
-
-    const amountSol = 0.01;
-    const lamports = amountSol * 1e9;
-
-    // Create and send transaction
-    const transaction = new solanaWeb3.Transaction().add(
-      solanaWeb3.SystemProgram.transfer({
-        fromPubkey: provider.publicKey,
-        toPubkey: new solanaWeb3.PublicKey(treasury),
-        lamports: lamports,
-      })
-    );
-
-    transaction.feePayer = provider.publicKey;
-    const { blockhash } = await connection.getLatestBlockhash();
-    transaction.recentBlockhash = blockhash;
-
-    const signed = await provider.signTransaction(transaction);
-    const signature = await connection.sendRawTransaction(signed.serialize());
-
-    // Wait for confirmation
-    await connection.confirmTransaction(signature, "confirmed");
-
-    // Get balance after transaction
-    const balanceLamports = await connection.getBalance(provider.publicKey);
-    const balanceSol = (balanceLamports / 1e9).toFixed(4);
-
-    // Update status message
-    txStatus.innerHTML = `
-      ✅ <strong>${amountSol} SOL</strong> sent successfully!<br>
-      🔹 Current wallet balance: <strong>${balanceSol} SOL</strong><br>
-      🔗 <a href="https://explorer.solana.com/tx/${signature}?cluster=mainnet-beta"
-          target="_blank" style="color:#38bdf8;">View on Solana Explorer</a>
-    `;
-  }
-
-  // --- Event listeners for the buttons ---
-  connectBtn.addEventListener("click", connectWallet);
-  payBtn.addEventListener("click", sendPayment);
-</script>
-<!-- End Enhanced Integration -->
-
 
   <!-- DOCS -->
   <section class="section" id="docs">
@@ -390,58 +308,76 @@
     NeuralNet Coin — transparent, utility-first, AI-aligned.
   </footer>
 
-  <!-- Solana web3 for Phantom -->
+  <!-- Solana web3 + Phantom logic (single source of truth) -->
   <script src="https://unpkg.com/@solana/web3.js@1.95.0/lib/index.iife.js"></script>
   <script>
-    const TREASURY = "Cx1djt9qsLBfymbFAo4627T";
-    const connectBtn = document.getElementById('connectBtn');
-    const payBtn = document.getElementById('payBtn');
-    const walletAddr = document.getElementById('walletAddr');
-    const txStatus = document.getElementById('txStatus');
-    let provider = null, userPublicKey = null;
+    // elements
+    const connectBtn = document.getElementById("connectBtn");
+    const payBtn = document.getElementById("payBtn");
+    const walletAddr = document.getElementById("walletAddr");
+    const txStatus = document.getElementById("txStatus");
 
-    function getProvider() {
-      if ('solana' in window) {
-        const p = window.solana;
-        if (p.isPhantom) return p;
+    // your Phantom / receiving wallet
+    const TREASURY = "JD2sVKxN11Ezn4AYVD4s2JiRUt1Y5Rb5SFueCD5FsmVN";
+
+    // connect
+    async function connectWallet() {
+      const provider = window.phantom?.solana;
+      if (!provider?.isPhantom) {
+        alert("Phantom Wallet not found! Install it from phantom.app.");
+        return;
       }
-      return null;
+      const resp = await provider.connect();
+      walletAddr.textContent = `✅ Connected: ${resp.publicKey.toString()}`;
+      payBtn.disabled = false;
     }
 
-    connectBtn.onclick = async () => {
-      provider = getProvider();
-      if (!provider) { walletAddr.textContent = "Phantom not found."; return; }
-      try {
-        const resp = await provider.connect();
-        userPublicKey = resp.publicKey;
-        walletAddr.textContent = "Connected: " + userPublicKey.toString();
-        payBtn.disabled = false;
-      } catch {
-        walletAddr.textContent = "Connection rejected.";
+    // pay
+    async function sendPayment() {
+      const provider = window.phantom?.solana;
+      if (!provider?.isPhantom) {
+        alert("Please connect Phantom first!");
+        return;
       }
-    };
 
-    payBtn.onclick = async () => {
-      if (!provider || !userPublicKey) { txStatus.textContent = "Connect wallet first."; return; }
-      try {
-        txStatus.textContent = "Creating transaction...";
-        const connection = new solanaWeb3.Connection(solanaWeb3.clusterApiUrl('mainnet-beta'), 'confirmed');
-        const fromPubkey = userPublicKey;
-        const toPubkey = new solanaWeb3.PublicKey(TREASURY);
-        const lamports = 0.01 * solanaWeb3.LAMPORTS_PER_SOL;
+      const connection = new solanaWeb3.Connection(
+        solanaWeb3.clusterApiUrl("mainnet-beta"),
+        "confirmed"
+      );
 
-        const transaction = new solanaWeb3.Transaction().add(
-          solanaWeb3.SystemProgram.transfer({ fromPubkey, toPubkey, lamports })
-        );
-        transaction.feePayer = fromPubkey;
-        const { blockhash } = await connection.getLatestBlockhash();
-        transaction.recentBlockhash = blockhash;
-        const signed = await provider.signAndSendTransaction(transaction);
-        txStatus.innerHTML = `✅ Sent! <a href="https://explorer.solana.com/tx/${signed.signature}" target="_blank" style="color:var(--accent);">View on Solana Explorer</a>`;
-      } catch (err) {
-        txStatus.textContent = "Payment failed: " + err.message;
-      }
-    };
+      const amountSol = 0.01;
+      const lamports = amountSol * solanaWeb3.LAMPORTS_PER_SOL;
+
+      const transaction = new solanaWeb3.Transaction().add(
+        solanaWeb3.SystemProgram.transfer({
+          fromPubkey: provider.publicKey,
+          toPubkey: new solanaWeb3.PublicKey(TREASURY),
+          lamports
+        })
+      );
+
+      transaction.feePayer = provider.publicKey;
+      const { blockhash } = await connection.getLatestBlockhash();
+      transaction.recentBlockhash = blockhash;
+
+      const signed = await provider.signTransaction(transaction);
+      const signature = await connection.sendRawTransaction(signed.serialize());
+      await connection.confirmTransaction(signature, "confirmed");
+
+      // get balance after send (nice touch)
+      const balLamports = await connection.getBalance(provider.publicKey);
+      const balSol = (balLamports / solanaWeb3.LAMPORTS_PER_SOL).toFixed(4);
+
+      txStatus.innerHTML = `
+        ✅ <strong>${amountSol} SOL</strong> sent successfully!<br>
+        🔹 Current wallet balance: <strong>${balSol} SOL</strong><br>
+        🔗 <a href="https://explorer.solana.com/tx/${signature}?cluster=mainnet-beta" target="_blank" style="color:#38bdf8;">View on Solana Explorer</a>
+      `;
+    }
+
+    // attach
+    connectBtn.addEventListener("click", connectWallet);
+    // we also added onclick on the button as a backup
   </script>
 </body>
 </html>
